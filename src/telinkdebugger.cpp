@@ -86,7 +86,9 @@ static uint8_t read_byte()
     pio_sm_clear_fifos(pio1, SM_RX);
     pio_sm_exec_wait_blocking(pio1, SM_RX, sws_rx_program_offset); // JMP offset
 
-    return pio_sm_get_blocking(pio1, SM_RX);
+    uint8_t value = pio_sm_get_blocking(pio1, SM_RX);
+    printf("# sws rx = 0x%02x\n", value);
+    return value;
 }
 
 static uint8_t read_first_debug_byte(uint16_t address)
@@ -196,10 +198,15 @@ static void init_cmd()
     sleep_ms(20);
     gpio_put(RST_PIN, true);
     sleep_ms(20);
-
+    
+    printf("# reset done\n");
+    
     halt_target();
+    
+    printf("# halted\n");
 
     uint16_t socid = read_single_debug_word(reg_soc_id);
+    printf("# socid = 0x%04x\n", socid);
     if (socid == 0x5316)
     {
         printf("S\n");
