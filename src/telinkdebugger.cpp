@@ -260,6 +260,7 @@ int main(void)
     for (;;)
     {
         int c = getchar();
+        printf("# RX = 0x%02X\n", (uint8_t)c);
         switch (c)
         {
             case 'i':
