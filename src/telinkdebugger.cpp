@@ -179,6 +179,12 @@ static void banner()
 {
     printf(
         "# Telink debugger bridge\n"
+        "# Fork by: Novan24"
+        "# Ver: 0.2"
+        "# Changes:\n"
+        "# - Added RX debug logging\n"
+        "# - Added SWS RX value logging\n"
+        "# - Added SOC ID display\n"
         "# Commands:\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
