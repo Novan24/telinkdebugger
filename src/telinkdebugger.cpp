@@ -179,8 +179,8 @@ static void banner()
 {
     printf(
         "# Telink debugger bridge\n"
-        "# Fork by: Novan24"
-        "# Ver: 0.2"
+        "# Fork by: Novan24\n"
+        "# Ver: 0.2\n"
         "# Changes:\n"
         "# - Added RX debug logging\n"
         "# - Added SWS RX value logging\n"
