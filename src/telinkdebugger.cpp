@@ -249,6 +249,7 @@ static void banner()
         "# g            take device out of reset\n"
         "# s            read device socid\n"
         "# t            Flash Test\n"
+        "# DAAAAALLLL  Dump flash (address,count hex)\n"
         "# RXXXXYYYY    read YYYY bytes from XXXX (values in hex)\n"
         "# WXXXXYYYY... write YYYY bytes to XXXX, folowed by hex pairs\n"
         "# Responses are S for success, E for error, and # is a comment.\n"
@@ -306,6 +307,23 @@ void set_tx_clock(double clock_hz)
 {
     sws_tx_program_init(pio0, SM_TX, sws_tx_program_offset, SWS_PIN, clock_hz);
     pio_sm_set_enabled(pio0, SM_TX, true);
+}
+
+static void flash_dump(uint32_t addr, uint16_t count)
+{
+    printf("# flash dump addr=0x%06lx len=%d\n", addr, count);
+
+    flash_read_start(addr);
+
+    while (count--)
+    {
+        uint8_t b = flash_read_next();
+        printf("%02x", b);
+    }
+
+    flash_read_end();
+
+    printf("\nS\n");
 }
 
 int main(void)
@@ -374,6 +392,18 @@ int main(void)
                 if (!is_connected)
             {
                 printf("# not connected\nE\n");
+                break;
+            }
+
+            case 'D':
+            {
+                uint16_t addr_hi = read_hex_word();
+                uint16_t count = read_hex_word();
+
+                uint32_t addr = addr_hi;
+
+                    flash_dump(addr, count);
+
                 break;
             }
 
