@@ -168,9 +168,66 @@ static void write_single_debug_quad(uint16_t address, uint32_t value)
     finish_writing_debug_bytes();
 }
 
+static void flash_cs_low()
+{
+    write_single_debug_byte(0x000d, 0x00);
+}
+
+static void flash_cs_high()
+{
+    write_single_debug_byte(0x000d, 0x01);
+}
+
+static void flash_read_start(uint32_t addr)
+{
+    flash_cs_low();
+
+    // Flash READ command
+    write_single_debug_byte(0x000c, 0x03);
+
+    // 24-bit address
+    write_single_debug_byte(0x000c, (addr >> 16) & 0xff);
+    write_single_debug_byte(0x000c, (addr >> 8) & 0xff);
+    write_single_debug_byte(0x000c, addr & 0xff);
+
+    // FIFO mode
+    write_single_debug_byte(0x00b3, 0x80);
+}
+
+static uint8_t flash_read_next()
+{
+    write_single_debug_byte(0x000c, 0xff);
+
+    return read_single_debug_byte(0x000c);
+}
+
+static void flash_read_end()
+{
+    write_single_debug_byte(0x00b3, 0x00);
+
+    flash_cs_high();
+}
+
 static void halt_target()
 {
     write_single_debug_byte(reg_debug_runstate, 0x05);
+}
+
+static void flash_test()
+{
+    printf("# flash test\n");
+
+    flash_read_start(0x000000);
+
+    for (int i = 0; i < 16; i++)
+    {
+        uint8_t b = flash_read_next();
+        printf("%02x", b);
+    }
+
+    flash_read_end();
+
+    printf("\nS\n");
 }
 
 static void set_target_clock_speed(uint8_t speed)
@@ -183,14 +240,15 @@ static void banner()
     printf(
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
-        "# Ver: 0.4\n"
+        "# Ver: 0.5\n"
         "# Changes:\n"
-        "# Ignore CR/LF from serial terminal\n"
+        "# Flash testing\n"
         "# Commands:\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
         "# g            take device out of reset\n"
         "# s            read device socid\n"
+        "# t            Flash Test\n"
         "# RXXXXYYYY    read YYYY bytes from XXXX (values in hex)\n"
         "# WXXXXYYYY... write YYYY bytes to XXXX, folowed by hex pairs\n"
         "# Responses are S for success, E for error, and # is a comment.\n"
@@ -311,6 +369,17 @@ int main(void)
                 break;
             }
 
+            case 't':
+            {
+                if (!is_connected)
+            {
+                printf("# not connected\nE\n");
+                break;
+            }
+
+                    flash_test();
+                break;
+            }
             case 'R':
             {
                 uint16_t address = read_hex_word();
