@@ -65,11 +65,13 @@ static void write_nine_bit_byte(uint16_t byte)
 
 static void write_cmd_byte(uint8_t byte)
 {
+    printf("[CMD] %02X\n", byte);
     write_nine_bit_byte(0x100 | byte);
 }
 
 static void write_data_byte(uint8_t byte)
 {
+    printf("[DATA] %02X\n", byte);
     write_nine_bit_byte(0x000 | byte);
 }
 
@@ -88,6 +90,7 @@ static uint8_t read_byte()
 
     uint8_t value = pio_sm_get_blocking(pio1, SM_RX);
     printf("# sws rx = 0x%02x\n", value);
+    printf("[READ] %02X\n", value);
     return value;
 }
 
@@ -180,11 +183,9 @@ static void banner()
     printf(
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
-        "# Ver: 0.2\n"
+        "# Ver: 0.3\n"
         "# Changes:\n"
-        "# - Added RX debug logging\n"
-        "# - Added SWS RX value logging\n"
-        "# - Added SOC ID display\n"
+        "# Added TX/RX debug logs for SWIRE\n"
         "# Commands:\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
