@@ -322,7 +322,9 @@ void set_tx_clock(double clock_hz)
 
 static void flash_dump(uint32_t addr, uint16_t count)
 {
-    printf("# flash dump addr=0x%06lx len=%d\n", addr, count);
+    printf("# flash dump addr=0x%06X len=%u\n",
+       (unsigned)addr,
+       (unsigned)count);
 
     flash_read_start(addr);
 
@@ -414,7 +416,7 @@ int main(void)
             {
                 uint32_t addr = read_hex_addr24();
                 uint16_t count = read_hex_word();
-            {
+            
                 flash_dump(addr, count);
                 break;
             }
