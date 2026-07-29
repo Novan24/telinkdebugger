@@ -183,9 +183,9 @@ static void banner()
     printf(
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
-        "# Ver: 0.3\n"
+        "# Ver: 0.4\n"
         "# Changes:\n"
-        "# Added TX/RX debug logs for SWIRE\n"
+        "# Ignore CR/LF from serial terminal\n"
         "# Commands:\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
@@ -277,6 +277,9 @@ int main(void)
         printf("# RX = 0x%02X\n", (uint8_t)c);
         switch (c)
         {
+            case '\r':
+            case '\n':
+                break;
             case 'i':
                 init_cmd();
                 break;
