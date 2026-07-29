@@ -395,21 +395,24 @@ int main(void)
                 break;
             }
 
-            case 'D':
-            {
-                uint16_t addr_hi = read_hex_word();
-                uint16_t count = read_hex_word();
-
-                uint32_t addr = addr_hi;
-
-                    flash_dump(addr, count);
-
-                break;
-            }
-
                     flash_test();
                 break;
             }
+
+            case 'D':
+            {
+                if (!is_connected)
+            {
+                printf("# not connected\nE\n");
+                break;
+            }
+
+    uint16_t addr = read_hex_word();
+    uint16_t count = read_hex_word();
+
+    flash_dump(addr, count);
+    break;
+}
             case 'R':
             {
                 uint16_t address = read_hex_word();
