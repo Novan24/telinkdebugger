@@ -65,13 +65,17 @@ static void write_nine_bit_byte(uint16_t byte)
 
 static void write_cmd_byte(uint8_t byte)
 {
+    #if DEBUG_SWS
     printf("[CMD] %02X\n", byte);
+    #endif
     write_nine_bit_byte(0x100 | byte);
 }
 
 static void write_data_byte(uint8_t byte)
 {
+    #if DEBUG_SWS
     printf("[DATA] %02X\n", byte);
+    #endif
     write_nine_bit_byte(0x000 | byte);
 }
 
@@ -90,7 +94,9 @@ static uint8_t read_byte()
 
     uint8_t value = pio_sm_get_blocking(pio1, SM_RX);
     printf("# sws rx = 0x%02x\n", value);
+    #if DEBUG_SWS
     printf("[READ] %02X\n", value);
+    #endif
     return value;
 }
 
@@ -240,9 +246,10 @@ static void banner()
     printf(
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
-        "# Ver: 0.8\n"
+        "# Ver: 1.0\n"
         "# Changes:\n"
-        "# Flash testing: Add flash dump command\n"
+        "# Disable verbose SWS data logging\n"
+        
         "# Commands:\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
