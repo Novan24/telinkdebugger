@@ -217,7 +217,7 @@ static void flash_test()
 {
     printf("# flash test\n");
 
-    flash_read_start(0x001000);
+    flash_read_start(0x000000);
 
     for (int i = 0; i < 16; i++)
     {
