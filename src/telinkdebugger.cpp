@@ -240,9 +240,9 @@ static void banner()
     printf(
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
-        "# Ver: 0.5\n"
+        "# Ver: 0.8\n"
         "# Changes:\n"
-        "# Flash testing\n"
+        "# Flash testing: Add flash dump command\n"
         "# Commands:\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
@@ -301,6 +301,17 @@ static uint16_t read_hex_word()
     uint8_t hi = read_hex_byte();
     uint8_t lo = read_hex_byte();
     return lo | (hi << 8);
+}
+
+static uint32_t read_hex_addr24()
+{
+    uint8_t b2 = read_hex_byte();
+    uint8_t b1 = read_hex_byte();
+    uint8_t b0 = read_hex_byte();
+
+    return ((uint32_t)b2 << 16) |
+           ((uint32_t)b1 << 8) |
+            b0;
 }
 
 void set_tx_clock(double clock_hz)
@@ -401,18 +412,13 @@ int main(void)
 
             case 'D':
             {
-                if (!is_connected)
+                uint32_t addr = read_hex_addr24();
+                uint16_t count = read_hex_word();
             {
-                printf("# not connected\nE\n");
+                flash_dump(addr, count);
                 break;
             }
 
-    uint16_t addr = read_hex_word();
-    uint16_t count = read_hex_word();
-
-    flash_dump(addr, count);
-    break;
-}
             case 'R':
             {
                 uint16_t address = read_hex_word();
