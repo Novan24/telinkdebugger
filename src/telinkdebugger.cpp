@@ -22,6 +22,7 @@
 #define SM_RX 0
 #define SM_TX 1
 
+#define DEBUG_SWS 0
 #define BUFFER_SIZE_BITS 4096
 
 #define REG_ADDR8(n) (n)
@@ -93,9 +94,9 @@ static uint8_t read_byte()
     pio_sm_exec_wait_blocking(pio1, SM_RX, sws_rx_program_offset); // JMP offset
 
     uint8_t value = pio_sm_get_blocking(pio1, SM_RX);
-    printf("# sws rx = 0x%02x\n", value);
+    
     #if DEBUG_SWS
-    printf("[READ] %02X\n", value);
+        printf("# sws rx = 0x%02X\n", value);
     #endif
     return value;
 }
@@ -225,11 +226,10 @@ static void flash_test()
 
     flash_read_start(0x000000);
 
-    for (int i = 0; i < 16; i++)
-    {
-        uint8_t b = flash_read_next();
-        printf("%02x", b);
-    }
+for (int i = 0; i < 16; i++)
+{
+    printf("%02x", flash_read_next());
+ }
 
     flash_read_end();
 
@@ -246,11 +246,9 @@ static void banner()
     printf(
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
-        "# Ver: 1.0\n"
+        "# Ver: 1.1\n"
         "# Changes:\n"
-        "# Disable verbose SWS data logging\n"
-        
-        "# Commands:\n"
+        "# Cleanup terminal output and improve flash dump formatting\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
         "# g            take device out of reset\n"
@@ -330,22 +328,26 @@ void set_tx_clock(double clock_hz)
 static void flash_dump(uint32_t addr, uint16_t count)
 {
     printf("# flash dump addr=0x%06X len=%u\n",
-       (unsigned)addr,
-       (unsigned)count);
+           (unsigned)addr,
+           (unsigned)count);
 
     flash_read_start(addr);
 
-    while (count--)
+    for (uint16_t i = 0; i < count; i++)
     {
-        uint8_t b = flash_read_next();
-        printf("%02x", b);
+        if ((i % 16) == 0)
+            printf("%06X: ", (unsigned)(addr + i));
+
+        printf("%02X ", flash_read_next());
+
+        if ((i % 16) == 15 || i == count - 1)
+            printf("\n");
     }
 
     flash_read_end();
 
-    printf("\nS\n");
+    printf("S\n");
 }
-
 int main(void)
 {
     usb_bridge_init();
