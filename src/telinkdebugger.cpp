@@ -254,6 +254,41 @@ static void flash_wait_busy()
     while (flash_read_status() & 0x01)
         ;
 }
+
+static void flash_page_program(uint32_t addr, const uint8_t* data, uint16_t len)
+{
+    flash_write_enable();
+
+    flash_cs_low();
+
+    // Page Program
+    write_single_debug_byte(0x000c, 0x02);
+
+    // Address
+    write_single_debug_byte(0x000c, (addr >> 16) & 0xff);
+    write_single_debug_byte(0x000c, (addr >> 8) & 0xff);
+    write_single_debug_byte(0x000c, addr & 0xff);
+
+    // Data
+    for (uint16_t i = 0; i < len; i++)
+        write_single_debug_byte(0x000c, data[i]);
+
+    flash_cs_high();
+
+    flash_wait_busy();
+}
+
+static void flash_program_test()
+{
+    uint8_t value = 0x55;
+
+    printf("# programming 1 byte...\n");
+
+    flash_page_program(0x000000, &value, 1);
+
+    printf("# done\n");
+}
+
 static void halt_target()
 {
     write_single_debug_byte(reg_debug_runstate, 0x05);
@@ -285,9 +320,9 @@ static void banner()
     printf(
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
-        "# Ver: 2.2\n"
+        "# Ver: 2.3\n"
         "# Changes:\n"
-        "# Add Early write test operation\n"
+        "# Add flash page program support\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
         "# g            take device out of reset\n"
@@ -534,6 +569,21 @@ printf("# status = %02X\n", flash_read_status());
     printf("S\n");
     break;
 }
+
+case 'P':
+{
+    if (!is_connected)
+    {
+        printf("E\n");
+        break;
+    }
+
+    flash_program_test();
+
+    printf("S\n");
+    break;
+}
+
             case 'R':
             {
                 uint16_t address = read_hex_word();
