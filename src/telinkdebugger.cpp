@@ -341,6 +341,38 @@ static void flash_program_buffer(uint32_t addr, uint16_t len)
     printf("# done\n");
 }
 
+static bool flash_verify_buffer(uint32_t addr, uint16_t len)
+{
+    printf("# verifying %u bytes at %06X\n",
+        (unsigned)len,
+        (unsigned)addr);
+
+    flash_read_start(addr);
+
+    for (uint16_t i = 0; i < len; i++)
+    {
+        uint8_t actual = flash_read_next();
+
+        if (actual != page_buffer[i])
+        {
+            flash_read_end();
+
+            printf("# verify failed\n");
+            printf("# addr     = %06X\n", (unsigned)(addr + i));
+            printf("# expected = %02X\n", page_buffer[i]);
+            printf("# actual   = %02X\n", actual);
+
+            return false;
+        }
+    }
+
+    flash_read_end();
+
+    printf("# verify ok\n");
+
+    return true;
+}
+
 static void flash_erase_test()
 {
     printf("# erasing sector...\n");
@@ -391,8 +423,8 @@ static void banner()
     printf(
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
-        "# Mod_Ver: 2.7\n"
-        "# Changes: implement SPI flash programming support\n"
+        "# Mod_Ver: 2.8\n"
+        "# Changes: Added Flash Verification\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
         "# g            take device out of reset\n"
@@ -406,6 +438,7 @@ static void banner()
         "# X            erase sector 0x000000 (test)\n"
         "# C            CHIP ERASE (This will ERASE the entire flash!)\n"
         "# UAAAAAALLLLDD... program bytes to flash\n"
+        "# YAAAAAALLLLDD... verify bytes in flash\n"
         "# RXXXXYYYY    read YYYY bytes from XXXX (values in hex)\n"
         "# WXXXXYYYY... write YYYY bytes to XXXX, folowed by hex pairs\n"
         "# Responses are S for success, E for error, and # is a comment.\n"
@@ -708,6 +741,35 @@ case 'U':
     flash_program_buffer(addr, len);
 
     printf("S\n");
+    break;
+}
+
+case 'Y':
+{
+    if (!is_connected)
+    {
+        printf("E\n");
+        break;
+    }
+
+    uint32_t addr = read_hex_addr24();
+    uint16_t len = read_hex_word();
+
+    if (len > 256)
+    {
+        printf("# max 256 bytes\n");
+        printf("E\n");
+        break;
+    }
+
+    for (uint16_t i = 0; i < len; i++)
+        page_buffer[i] = read_hex_byte();
+
+    if (flash_verify_buffer(addr, len))
+        printf("S\n");
+    else
+        printf("E\n");
+
     break;
 }
 
