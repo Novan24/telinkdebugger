@@ -217,6 +217,43 @@ static void flash_read_end()
     flash_cs_high();
 }
 
+static void flash_write_enable()
+{
+    flash_cs_low();
+
+    // SPI Flash: Write Enable
+    write_single_debug_byte(0x000c, 0x06);
+
+    flash_cs_high();
+}
+static uint8_t flash_read_status()
+{
+    uint8_t status;
+
+    flash_cs_low();
+
+    // Read Status Register-1
+    write_single_debug_byte(0x000c, 0x05);
+
+    // FIFO read mode
+    write_single_debug_byte(0x00b3, 0x80);
+
+    // Dummy byte
+    write_single_debug_byte(0x000c, 0xff);
+
+    status = read_single_debug_byte(0x000c);
+
+    write_single_debug_byte(0x00b3, 0x00);
+
+    flash_cs_high();
+
+    return status;
+}
+static void flash_wait_busy()
+{
+    while (flash_read_status() & 0x01)
+        ;
+}
 static void halt_target()
 {
     write_single_debug_byte(reg_debug_runstate, 0x05);
@@ -248,9 +285,9 @@ static void banner()
     printf(
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
-        "# Ver: 1.2\n"
+        "# Ver: 2.2\n"
         "# Changes:\n"
-        "# Add full flash dump cmd\n"
+        "# Add Early write test operation\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
         "# g            take device out of reset\n"
@@ -258,6 +295,8 @@ static void banner()
         "# t            Flash Test\n"
         "# F            dump full flash\n"
         "# DAAAAALLLL  Dump flash (address,count hex)\n"
+        "# B            read flash status register\n"
+        "# E            flash write enable\n"
         "# RXXXXYYYY    read YYYY bytes from XXXX (values in hex)\n"
         "# WXXXXYYYY... write YYYY bytes to XXXX, folowed by hex pairs\n"
         "# Responses are S for success, E for error, and # is a comment.\n"
@@ -409,6 +448,19 @@ int main(void)
                 break;
             }
 
+case 'B':
+{
+    if (!is_connected)
+    {
+        printf("E\n");
+        break;
+    }
+
+    printf("# status = %02X\n", flash_read_status());
+    printf("S\n");
+    break;
+}
+
             case 'g':
             {
                 gpio_put(RST_PIN, 0);
@@ -464,6 +516,24 @@ int main(void)
                 break;
             }
 
+            case 'E':
+{
+    if (!is_connected)
+    {
+        printf("# not connected\n");
+        printf("E\n");
+        break;
+    }
+
+    flash_write_enable();
+
+sleep_us(20);
+
+printf("# status = %02X\n", flash_read_status());
+
+    printf("S\n");
+    break;
+}
             case 'R':
             {
                 uint16_t address = read_hex_word();
