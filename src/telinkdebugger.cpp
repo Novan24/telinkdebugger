@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT .
+// SPDX-License-Identifier: MIT
 /*
  * Copyright (c) 2024 David Given <dg@cowlark.com>
  */
@@ -244,29 +244,22 @@ static void set_target_clock_speed(uint8_t speed)
 }
 
 
-static bool init_target_quiet()
+static bool init_target_quiet(void)
 {
     gpio_put(RST_PIN, false);
     sleep_ms(20);
     gpio_put(RST_PIN, true);
     sleep_ms(20);
-    
+
     halt_target();
-    
+
     uint16_t socid = read_single_debug_word(reg_soc_id);
-    if (socid == 0x5316)
-    {
-        is_connected = true;
+    if (socid != 0x5316)
+        return false;
 
-        /* Disable the watchdog timer. */
-
-        write_single_debug_quad(reg_tmr_ctl, 0);
-        return true;
-    }
-
-    return false;
+    write_single_debug_quad(reg_tmr_ctl, 0);
+    return true;
 }
-
 static uint8_t read_hex_byte()
 {
     char buffer[3];
@@ -299,35 +292,36 @@ void set_tx_clock(double clock_hz)
     sws_tx_program_init(pio0, SM_TX, sws_tx_program_offset, SWS_PIN, clock_hz);
     pio_sm_set_enabled(pio0, SM_TX, true);
 }
-static void flash_dump_range(uint32_t addr, uint32_t count, bool print_status)
+
+static void flash_dump_range(uint32_t addr, uint32_t count)
 {
     flash_read_start(addr);
 
     for (uint32_t i = 0; i < count; i++)
-    {
-        if ((i % 16) == 0)
-            printf("%06X: ", (unsigned)(addr + i));
+{
+    printf("%02x", flash_read_next());
 
-        printf("%02X ", flash_read_next());
+    if ((i & 0xFF) == 0xFF)
+        printf("\n");
+}
 
-        if ((i % 16) == 15 || i == count - 1)
-            printf("\n");
-    }
-
+if (count & 0xFF)
+    printf("\n");
+    
     flash_read_end();
-
 }
 
 static void flash_dump(uint32_t addr, uint16_t count)
 {
-        flash_dump_range(addr, count, true);
+    flash_dump_range(addr, count);
 }
 
 static void flash_dump_all(void)
 {
-        flash_dump_range(0x000000, FLASH_DUMP_TOTAL, false);
+    flash_dump_range(0x000000, FLASH_DUMP_TOTAL);
     printf("S\n");
 }
+
 
 int main(void)
 {
@@ -357,14 +351,18 @@ int main(void)
             case '\r':
             case '\n':
                 break;
+            
             case 'i':
-                init_cmd();
-                break;
-
+{
+    is_connected = init_target_quiet();
+    putchar(is_connected ? 'S' : 'E');
+    putchar('\n');
+    break;
+}
+            
             case 'r':
             {
                 int i = getchar() == '1';
-                printf("# reset <- %d\n", i);
                 gpio_put(RST_PIN, i);
                 if (i == 0)
                     is_connected = false;
@@ -392,7 +390,6 @@ int main(void)
             {
                 if (!is_connected)
             {
-                printf("# not connected\nE\n");
                 break;
             }
 
@@ -404,7 +401,7 @@ int main(void)
                 {
                 if (!is_connected)
             {
-                printf("# not connected\nE\n");
+                printf("E\n");
                 break;
             }
 
@@ -416,17 +413,16 @@ int main(void)
             }
 
             case 'F':
-                {
-                if (!is_connected)
-            {
-                printf("# not connected\nE\n");
-                break;
-            }
+{
+    if (!is_connected)
+    {
+        printf("E\n");
+        break;
+    }
 
-                flash_dump_all();
-                break;
-            }
-
+    flash_dump_all();
+    break;
+}
             case 'R':
             {
                 uint16_t address = read_hex_word();
@@ -475,8 +471,6 @@ int main(void)
                 break;
             }
 
-            case '?':
-                            break;
 
             default:
                 printf("?\n");
