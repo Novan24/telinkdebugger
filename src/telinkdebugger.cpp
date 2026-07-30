@@ -299,6 +299,20 @@ static void flash_sector_erase(uint32_t addr)
     flash_wait_busy();
 }
 
+static void flash_chip_erase(void)
+{
+    flash_write_enable();
+
+    flash_cs_low();
+
+    // CHIP ERASE
+    write_single_debug_byte(0x000c, 0xC7);
+
+    flash_cs_high();
+
+    flash_wait_busy();
+}
+
 static void flash_program_test()
 {
     uint8_t value = 0x55;
@@ -328,6 +342,16 @@ static void flash_erase_test()
     flash_sector_erase(0x000000);
 
     printf("# erase done\n");
+}
+
+static void flash_chip_erase_test()
+{
+    printf("# WARNING: CHIP ERASE\n");
+    printf("# This may take several seconds...\n");
+
+    flash_chip_erase();
+
+    printf("# chip erase done\n");
 }
 
 static void halt_target()
@@ -361,8 +385,8 @@ static void banner()
     printf(
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
-        "# Mod_Ver: 2.5\n"
-        "# Changes: add SPI flash sector erase support\n"
+        "# Mod_Ver: 2.6\n"
+        "# Changes: added Full Flash ERASER\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
         "# g            take device out of reset\n"
@@ -373,6 +397,7 @@ static void banner()
         "# B            read flash status register\n"
         "# E            flash write enable\n"
         "# X            erase sector 0x000000 (test)\n"
+        "# C            CHIP ERASE (This will ERASE the entire flash!)\n"
         "# UAAAAAALLLLDD... program bytes to flash\n"
         "# RXXXXYYYY    read YYYY bytes from XXXX (values in hex)\n"
         "# WXXXXYYYY... write YYYY bytes to XXXX, folowed by hex pairs\n"
@@ -635,6 +660,19 @@ case 'X':
     }
 
     flash_erase_test();
+
+    printf("S\n");
+    break;
+}
+case 'C':
+{
+    if (!is_connected)
+    {
+        printf("E\n");
+        break;
+    }
+
+    flash_chip_erase_test();
 
     printf("S\n");
     break;
