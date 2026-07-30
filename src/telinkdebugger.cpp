@@ -243,56 +243,28 @@ static void set_target_clock_speed(uint8_t speed)
     write_single_debug_byte(reg_swire_clk_div, speed);
 }
 
-static void banner()
-{
-    printf(
-        "# Telink debugger bridge\n"
-        "# Fork by: Novan24\n"
-        "# Ver: 1.2\n"
-        "# Changes:\n"
-        "# Add full flash dump cmd\n"
-        "# i            verify connection to device\n"
-        "# rX           X=[0, 1] set status of reset pin\n"
-        "# g            take device out of reset\n"
-        "# s            read device socid\n"
-        "# t            Flash Test\n"
-        "# F            dump full flash\n"
-        "# DAAAAALLLL  Dump flash (address,count hex)\n"
-        "# RXXXXYYYY    read YYYY bytes from XXXX (values in hex)\n"
-        "# WXXXXYYYY... write YYYY bytes to XXXX, folowed by hex pairs\n"
-        "# Responses are S for success, E for error, and # is a comment.\n"
-        "# Good luck (you'll need it).\n");
-}
 
-static void init_cmd()
+static bool init_target_quiet()
 {
-    printf("# init\n");
-
     gpio_put(RST_PIN, false);
     sleep_ms(20);
     gpio_put(RST_PIN, true);
     sleep_ms(20);
     
-    printf("# reset done\n");
-    
     halt_target();
     
-    printf("# halted\n");
-
     uint16_t socid = read_single_debug_word(reg_soc_id);
-    printf("# socid = 0x%04x\n", socid);
     if (socid == 0x5316)
     {
-        printf("S\n");
         is_connected = true;
 
         /* Disable the watchdog timer. */
 
         write_single_debug_quad(reg_tmr_ctl, 0);
-        return;
+        return true;
     }
 
-    printf("E\n# init failed\n");
+    return false;
 }
 
 static uint8_t read_hex_byte()
@@ -344,23 +316,16 @@ static void flash_dump_range(uint32_t addr, uint32_t count, bool print_status)
 
     flash_read_end();
 
-    if (print_status)
-        printf("S\n");
 }
 
 static void flash_dump(uint32_t addr, uint16_t count)
 {
-    printf("# flash dump addr=0x%06X len=%u\n",
-           (unsigned)addr,
-           (unsigned)count);
-
-    flash_dump_range(addr, count, true);
+        flash_dump_range(addr, count, true);
 }
 
 static void flash_dump_all(void)
 {
-    printf("# full flash dump start\n");
-    flash_dump_range(0x000000, FLASH_DUMP_TOTAL, false);
+        flash_dump_range(0x000000, FLASH_DUMP_TOTAL, false);
     printf("S\n");
 }
 
@@ -384,11 +349,9 @@ int main(void)
     sws_rx_program_init(pio1, SM_RX, sws_rx_program_offset, SWS_PIN);
     pio_sm_set_enabled(pio1, SM_RX, true);
 
-    banner();
     for (;;)
     {
         int c = getchar();
-        printf("# RX = 0x%02X\n", (uint8_t)c);
         switch (c)
         {
             case '\r':
@@ -513,8 +476,7 @@ int main(void)
             }
 
             case '?':
-                banner();
-                break;
+                            break;
 
             default:
                 printf("?\n");
