@@ -54,9 +54,8 @@ static int sws_rx_program_offset;
 
 static bool is_connected;
 
-
-
 static uint8_t page_buffer[256];
+static uint32_t bytes_programmed = 0;
 
 static void write_nine_bit_byte(uint16_t byte)
 {
@@ -393,7 +392,7 @@ static void banner()
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
         "# Mod_Ver: 2.7\n"
-        "# Changes: added Full Flash ERASER\n"
+        "# Changes: implement SPI flash programming support\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
         "# g            take device out of reset\n"
@@ -712,6 +711,14 @@ case 'U':
     break;
 }
 
+case 'V':
+{
+    printf("# Telink Debugger Bridge\n");
+    printf("# Version 2.7\n");
+    printf("S\n");
+    break;
+}
+
             case 'R':
             {
                 uint16_t address = read_hex_word();
@@ -767,13 +774,6 @@ case 'U':
             default:
                 printf("?\n");
                 printf("# unknown command\n");
-        }
-        case 'V':
-{
-    printf("# Telink Debugger Bridge\n");
-    printf("# Version 2.6\n");
-    printf("S\n");
-    break;
         }
     }
 }
