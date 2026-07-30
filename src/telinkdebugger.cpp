@@ -278,6 +278,25 @@ static void flash_page_program(uint32_t addr, const uint8_t* data, uint16_t len)
     flash_wait_busy();
 }
 
+static void flash_sector_erase(uint32_t addr)
+{
+    flash_write_enable();
+
+    flash_cs_low();
+
+    // Sector Erase (4KB)
+    write_single_debug_byte(0x000c, 0x20);
+
+    // 24-bit address
+    write_single_debug_byte(0x000c, (addr >> 16) & 0xff);
+    write_single_debug_byte(0x000c, (addr >> 8) & 0xff);
+    write_single_debug_byte(0x000c, addr & 0xff);
+
+    flash_cs_high();
+
+    flash_wait_busy();
+}
+
 static void flash_program_test()
 {
     uint8_t value = 0x55;
@@ -287,6 +306,15 @@ static void flash_program_test()
     flash_page_program(0x000000, &value, 1);
 
     printf("# done\n");
+}
+
+static void flash_erase_test()
+{
+    printf("# erasing sector...\n");
+
+    flash_sector_erase(0x000000);
+
+    printf("# erase done\n");
 }
 
 static void halt_target()
@@ -320,9 +348,9 @@ static void banner()
     printf(
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
-        "# Ver: 2.3\n"
+        "# Mod_Ver: 2.4\n"
         "# Changes:\n"
-        "# Add flash page program support\n"
+        "# Add sector Eraser\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
         "# g            take device out of reset\n"
@@ -332,6 +360,7 @@ static void banner()
         "# DAAAAALLLL  Dump flash (address,count hex)\n"
         "# B            read flash status register\n"
         "# E            flash write enable\n"
+        "# X            erase sector 0x000000 (test)\n"
         "# RXXXXYYYY    read YYYY bytes from XXXX (values in hex)\n"
         "# WXXXXYYYY... write YYYY bytes to XXXX, folowed by hex pairs\n"
         "# Responses are S for success, E for error, and # is a comment.\n"
@@ -579,6 +608,20 @@ case 'P':
     }
 
     flash_program_test();
+
+    printf("S\n");
+    break;
+}
+
+case 'X':
+{
+    if (!is_connected)
+    {
+        printf("E\n");
+        break;
+    }
+
+    flash_erase_test();
 
     printf("S\n");
     break;
