@@ -14,6 +14,8 @@
 #include "sws.pio.h"
 #include "globals.h"
 
+#define FLASH_DUMP_TOTAL 0x100000u
+
 #define SWS_PIN 2
 #define RST_PIN 3
 #define DBG_PIN 4
@@ -246,14 +248,15 @@ static void banner()
     printf(
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
-        "# Ver: 1.1\n"
+        "# Ver: 1.2\n"
         "# Changes:\n"
-        "# Cleanup terminal output and improve flash dump formatting\n"
+        "# Add full flash dump cmd\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
         "# g            take device out of reset\n"
         "# s            read device socid\n"
         "# t            Flash Test\n"
+        "# F            dump full flash\n"
         "# DAAAAALLLL  Dump flash (address,count hex)\n"
         "# RXXXXYYYY    read YYYY bytes from XXXX (values in hex)\n"
         "# WXXXXYYYY... write YYYY bytes to XXXX, folowed by hex pairs\n"
@@ -324,16 +327,11 @@ void set_tx_clock(double clock_hz)
     sws_tx_program_init(pio0, SM_TX, sws_tx_program_offset, SWS_PIN, clock_hz);
     pio_sm_set_enabled(pio0, SM_TX, true);
 }
-
-static void flash_dump(uint32_t addr, uint16_t count)
+static void flash_dump_range(uint32_t addr, uint32_t count, bool print_status)
 {
-    printf("# flash dump addr=0x%06X len=%u\n",
-           (unsigned)addr,
-           (unsigned)count);
-
     flash_read_start(addr);
 
-    for (uint16_t i = 0; i < count; i++)
+    for (uint32_t i = 0; i < count; i++)
     {
         if ((i % 16) == 0)
             printf("%06X: ", (unsigned)(addr + i));
@@ -346,8 +344,26 @@ static void flash_dump(uint32_t addr, uint16_t count)
 
     flash_read_end();
 
+    if (print_status)
+        printf("S\n");
+}
+
+static void flash_dump(uint32_t addr, uint16_t count)
+{
+    printf("# flash dump addr=0x%06X len=%u\n",
+           (unsigned)addr,
+           (unsigned)count);
+
+    flash_dump_range(addr, count, true);
+}
+
+static void flash_dump_all(void)
+{
+    printf("# full flash dump start\n");
+    flash_dump_range(0x000000, FLASH_DUMP_TOTAL, false);
     printf("S\n");
 }
+
 int main(void)
 {
     usb_bridge_init();
@@ -422,11 +438,29 @@ int main(void)
             }
 
             case 'D':
+                {
+                if (!is_connected)
             {
+                printf("# not connected\nE\n");
+                break;
+            }
+
                 uint32_t addr = read_hex_addr24();
                 uint16_t count = read_hex_word();
-            
+
                 flash_dump(addr, count);
+            break;
+            }
+
+            case 'F':
+                {
+                if (!is_connected)
+            {
+                printf("# not connected\nE\n");
+                break;
+            }
+
+                flash_dump_all();
                 break;
             }
 
