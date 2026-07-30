@@ -54,6 +54,8 @@ static int sws_rx_program_offset;
 
 static bool is_connected;
 
+
+
 static uint8_t page_buffer[256];
 
 static void write_nine_bit_byte(uint16_t byte)
@@ -332,6 +334,11 @@ static void flash_program_buffer(uint32_t addr, uint16_t len)
 
     flash_page_program(addr, page_buffer, len);
 
+    bytes_programmed += len;
+
+    printf("# total programmed = %lu bytes\n",
+    (unsigned long)bytes_programmed);
+
     printf("# done\n");
 }
 
@@ -385,12 +392,13 @@ static void banner()
     printf(
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
-        "# Mod_Ver: 2.6\n"
+        "# Mod_Ver: 2.7\n"
         "# Changes: added Full Flash ERASER\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
         "# g            take device out of reset\n"
         "# s            read device socid\n"
+        "# V            show firmware version\n"
         "# t            Flash Test\n"
         "# F            dump full flash\n"
         "# DAAAAALLLL  Dump flash (address,count hex)\n"
@@ -759,6 +767,13 @@ case 'U':
             default:
                 printf("?\n");
                 printf("# unknown command\n");
+        }
+        case 'V':
+{
+    printf("# Telink Debugger Bridge\n");
+    printf("# Version 2.6\n");
+    printf("S\n");
+    break;
         }
     }
 }
