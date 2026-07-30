@@ -54,6 +54,8 @@ static int sws_rx_program_offset;
 
 static bool is_connected;
 
+static uint8_t page_buffer[256];
+
 static void write_nine_bit_byte(uint16_t byte)
 {
     pio_gpio_init(pio0, SWS_PIN);
@@ -308,6 +310,17 @@ static void flash_program_test()
     printf("# done\n");
 }
 
+static void flash_program_buffer(uint32_t addr, uint16_t len)
+{
+    printf("# programming %u bytes at %06X\n",
+        (unsigned)len,
+        (unsigned)addr);
+
+    flash_page_program(addr, page_buffer, len);
+
+    printf("# done\n");
+}
+
 static void flash_erase_test()
 {
     printf("# erasing sector...\n");
@@ -348,9 +361,8 @@ static void banner()
     printf(
         "# Telink debugger bridge\n"
         "# Fork by: Novan24\n"
-        "# Mod_Ver: 2.4\n"
-        "# Changes:\n"
-        "# Add sector Eraser\n"
+        "# Mod_Ver: 2.5\n"
+        "# Changes: add SPI flash sector erase support\n"
         "# i            verify connection to device\n"
         "# rX           X=[0, 1] set status of reset pin\n"
         "# g            take device out of reset\n"
@@ -361,6 +373,7 @@ static void banner()
         "# B            read flash status register\n"
         "# E            flash write enable\n"
         "# X            erase sector 0x000000 (test)\n"
+        "# UAAAAAALLLLDD... program bytes to flash\n"
         "# RXXXXYYYY    read YYYY bytes from XXXX (values in hex)\n"
         "# WXXXXYYYY... write YYYY bytes to XXXX, folowed by hex pairs\n"
         "# Responses are S for success, E for error, and # is a comment.\n"
@@ -622,6 +635,32 @@ case 'X':
     }
 
     flash_erase_test();
+
+    printf("S\n");
+    break;
+}
+case 'U':
+{
+    if (!is_connected)
+    {
+        printf("E\n");
+        break;
+    }
+
+    uint32_t addr = read_hex_addr24();
+    uint16_t len = read_hex_word();
+
+    if (len > 256)
+    {
+        printf("# max 256 bytes\n");
+        printf("E\n");
+        break;
+    }
+
+    for (uint16_t i = 0; i < len; i++)
+        page_buffer[i] = read_hex_byte();
+
+    flash_program_buffer(addr, len);
 
     printf("S\n");
     break;
