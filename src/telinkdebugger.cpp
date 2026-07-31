@@ -421,7 +421,7 @@ static uint8_t read_hex_byte()
 char buffer[3];
 buffer[0] = getchar();
 buffer[1] = getchar();
-buffer[2] = 0
+buffer[2] = 0;
 
 //temporary debug
 printf("# hex chars = '%c%c'\n", buffer[0], buffer[1]);
