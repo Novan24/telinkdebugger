@@ -416,38 +416,46 @@ printf("# done\n");
 
 }
 
-//Prototype
-static bool flash_verify_buffer(uint32_t addr, uint16_t len);
-//over
-
-static bool flash_program_stream(uint32_t addr, uint32_t len)
+static uint8_t read_hex_byte()
 {
-    while (len)
-    {
-        uint16_t chunk = (len > 256) ? 256 : len;
+char buffer[3];
+buffer[0] = getchar();
+buffer[1] = getchar();
+buffer[2] = 0;
+return strtoul(buffer, nullptr, 16);
+}
 
-        for (uint16_t i = 0; i < chunk; i++)
-            page_buffer[i] = read_hex_byte();
+static uint16_t read_hex_word()
+{
+uint8_t hi = read_hex_byte();
+uint8_t lo = read_hex_byte();
+return lo | (hi << 8);
+}
 
-        printf("# programming %u bytes @ %06X\n",
-               chunk,
-               (unsigned)addr);
+static uint32_t read_hex_addr24()
+{
+uint8_t b2 = read_hex_byte();
+uint8_t b1 = read_hex_byte();
+uint8_t b0 = read_hex_byte();
 
-        flash_program(addr, page_buffer, chunk);
+return ((uint32_t)b2 << 16) |  
+       ((uint32_t)b1 << 8) |  
+        b0;
 
-        if (!flash_verify_buffer(addr, chunk))
-        {
-            printf("# verify failed at %06X\n", (unsigned)addr);
-            return false;
-        }
+}
 
-        bytes_programmed += chunk;
+static uint32_t read_hex_dword()
+{
+uint8_t b3 = read_hex_byte();
+uint8_t b2 = read_hex_byte();
+uint8_t b1 = read_hex_byte();
+uint8_t b0 = read_hex_byte();
 
-        addr += chunk;
-        len -= chunk;
-    }
+return ((uint32_t)b3 << 24) |  
+       ((uint32_t)b2 << 16) |  
+       ((uint32_t)b1 << 8)  |  
+        b0;
 
-    return true;
 }
 
 static bool flash_verify_buffer(uint32_t addr, uint16_t len)
@@ -481,6 +489,36 @@ printf("# verify ok\n");
 
 return true;
 
+}
+
+static bool flash_program_stream(uint32_t addr, uint32_t len)
+{
+    while (len)
+    {
+        uint16_t chunk = (len > 256) ? 256 : len;
+
+        for (uint16_t i = 0; i < chunk; i++)
+            page_buffer[i] = read_hex_byte();
+
+        printf("# programming %u bytes @ %06X\n",
+               chunk,
+               (unsigned)addr);
+
+        flash_program(addr, page_buffer, chunk);
+
+        if (!flash_verify_buffer(addr, chunk))
+        {
+            printf("# verify failed at %06X\n", (unsigned)addr);
+            return false;
+        }
+
+        bytes_programmed += chunk;
+
+        addr += chunk;
+        len -= chunk;
+    }
+
+    return true;
 }
 
 static void flash_erase_test()
@@ -588,48 +626,6 @@ if (socid == 0x5316)
 }  
 
 printf("E\n# init failed\n");
-
-}
-
-static uint8_t read_hex_byte()
-{
-char buffer[3];
-buffer[0] = getchar();
-buffer[1] = getchar();
-buffer[2] = 0;
-return strtoul(buffer, nullptr, 16);
-}
-
-static uint16_t read_hex_word()
-{
-uint8_t hi = read_hex_byte();
-uint8_t lo = read_hex_byte();
-return lo | (hi << 8);
-}
-
-static uint32_t read_hex_addr24()
-{
-uint8_t b2 = read_hex_byte();
-uint8_t b1 = read_hex_byte();
-uint8_t b0 = read_hex_byte();
-
-return ((uint32_t)b2 << 16) |  
-       ((uint32_t)b1 << 8) |  
-        b0;
-
-}
-
-static uint32_t read_hex_dword()
-{
-uint8_t b3 = read_hex_byte();
-uint8_t b2 = read_hex_byte();
-uint8_t b1 = read_hex_byte();
-uint8_t b0 = read_hex_byte();
-
-return ((uint32_t)b3 << 24) |  
-       ((uint32_t)b2 << 16) |  
-       ((uint32_t)b1 << 8)  |  
-        b0;
 
 }
 
