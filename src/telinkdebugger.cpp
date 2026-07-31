@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 /*
- * Copyright (c) 2024 David Given <dg@cowlark.com>
- */
+
+Copyright (c) 2024 David Given dg@cowlark.com
+*/
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,783 +61,957 @@ static uint32_t bytes_programmed = 0;
 
 static void write_nine_bit_byte(uint16_t byte)
 {
-    pio_gpio_init(pio0, SWS_PIN);
-    pio_interrupt_clear(pio0, 0);
+pio_gpio_init(pio0, SWS_PIN);
+pio_interrupt_clear(pio0, 0);
 
-    pio_sm_put(pio0, SM_TX, byte);
+pio_sm_put(pio0, SM_TX, byte);  
 
-    while (!pio_interrupt_get(pio0, 0))
-        ;
-    pio_interrupt_clear(pio0, 0);
+while (!pio_interrupt_get(pio0, 0))  
+    ;  
+pio_interrupt_clear(pio0, 0);
+
 }
 
 static void write_cmd_byte(uint8_t byte)
 {
-    #if DEBUG_SWS
-    printf("[CMD] %02X\n", byte);
-    #endif
-    write_nine_bit_byte(0x100 | byte);
+#if DEBUG_SWS
+printf("[CMD] %02X\n", byte);
+#endif
+write_nine_bit_byte(0x100 | byte);
 }
 
 static void write_data_byte(uint8_t byte)
 {
-    #if DEBUG_SWS
-    printf("[DATA] %02X\n", byte);
-    #endif
-    write_nine_bit_byte(0x000 | byte);
+#if DEBUG_SWS
+printf("[DATA] %02X\n", byte);
+#endif
+write_nine_bit_byte(0x000 | byte);
 }
 
 static void write_data_word(uint16_t word)
 {
-    write_data_byte(word >> 8);
-    write_data_byte(word & 0xff);
+write_data_byte(word >> 8);
+write_data_byte(word & 0xff);
 }
 
 static uint8_t read_byte()
 {
-    pio_gpio_init(pio1, SWS_PIN);
-    pio_gpio_init(pio1, DBG_PIN);
-    pio_sm_clear_fifos(pio1, SM_RX);
-    pio_sm_exec_wait_blocking(pio1, SM_RX, sws_rx_program_offset); // JMP offset
+pio_gpio_init(pio1, SWS_PIN);
+pio_gpio_init(pio1, DBG_PIN);
+pio_sm_clear_fifos(pio1, SM_RX);
+pio_sm_exec_wait_blocking(pio1, SM_RX, sws_rx_program_offset); // JMP offset
 
-    uint8_t value = pio_sm_get_blocking(pio1, SM_RX);
-    
-    #if DEBUG_SWS
-        printf("# sws rx = 0x%02X\n", value);
-    #endif
-    return value;
+uint8_t value = pio_sm_get_blocking(pio1, SM_RX);  
+  
+#if DEBUG_SWS  
+    printf("# sws rx = 0x%02X\n", value);  
+#endif  
+return value;
+
 }
 
 static uint8_t read_first_debug_byte(uint16_t address)
 {
-    write_cmd_byte(0x5a);
-    write_data_word(address);
-    write_data_byte(0x80);
+write_cmd_byte(0x5a);
+write_data_word(address);
+write_data_byte(0x80);
 
-    return read_byte();
+return read_byte();
+
 }
 
 static uint8_t read_next_debug_byte()
 {
-    return read_byte();
+return read_byte();
 }
 
 static void finish_reading_debug_bytes()
 {
-    write_cmd_byte(0xff);
+write_cmd_byte(0xff);
 }
 
 static uint8_t read_single_debug_byte(uint16_t address)
 {
-    uint8_t value = read_first_debug_byte(address);
-    finish_reading_debug_bytes();
-    return value;
+uint8_t value = read_first_debug_byte(address);
+finish_reading_debug_bytes();
+return value;
 }
 
 static uint16_t read_single_debug_word(uint16_t address)
 {
-    uint8_t v1 = read_first_debug_byte(address);
-    uint8_t v2 = read_next_debug_byte();
-    finish_reading_debug_bytes();
-    return v1 | (v2 << 8);
+uint8_t v1 = read_first_debug_byte(address);
+uint8_t v2 = read_next_debug_byte();
+finish_reading_debug_bytes();
+return v1 | (v2 << 8);
 }
 
 static void write_first_debug_byte(uint16_t address, uint8_t value)
 {
-    write_cmd_byte(0x5a);
-    write_data_word(address);
-    write_data_byte(0x00);
-    write_data_byte(value);
+write_cmd_byte(0x5a);
+write_data_word(address);
+write_data_byte(0x00);
+write_data_byte(value);
 }
 
 static void write_next_debug_byte(uint8_t value)
 {
-    write_data_byte(value);
+write_data_byte(value);
 }
 
 static void finish_writing_debug_bytes()
 {
-    write_cmd_byte(0xff);
+write_cmd_byte(0xff);
 }
 
 static void write_single_debug_byte(uint16_t address, uint8_t value)
 {
-    write_first_debug_byte(address, value);
-    finish_writing_debug_bytes();
+write_first_debug_byte(address, value);
+finish_writing_debug_bytes();
 }
 
 static void write_single_debug_word(uint16_t address, uint16_t value)
 {
-    write_first_debug_byte(address, value);
-    write_next_debug_byte(value >> 8);
-    finish_writing_debug_bytes();
+write_first_debug_byte(address, value);
+write_next_debug_byte(value >> 8);
+finish_writing_debug_bytes();
 }
 
 static void write_single_debug_quad(uint16_t address, uint32_t value)
 {
-    write_first_debug_byte(address, value);
-    write_next_debug_byte(value >> 8);
-    write_next_debug_byte(value >> 16);
-    write_next_debug_byte(value >> 24);
-    finish_writing_debug_bytes();
+write_first_debug_byte(address, value);
+write_next_debug_byte(value >> 8);
+write_next_debug_byte(value >> 16);
+write_next_debug_byte(value >> 24);
+finish_writing_debug_bytes();
 }
 
 static void flash_cs_low()
 {
-    write_single_debug_byte(0x000d, 0x00);
+write_single_debug_byte(0x000d, 0x00);
 }
 
 static void flash_cs_high()
 {
-    write_single_debug_byte(0x000d, 0x01);
+write_single_debug_byte(0x000d, 0x01);
 }
 
 static void flash_read_start(uint32_t addr)
 {
-    flash_cs_low();
+flash_cs_low();
 
-    // Flash READ command
-    write_single_debug_byte(0x000c, 0x03);
+// Flash READ command  
+write_single_debug_byte(0x000c, 0x03);  
 
-    // 24-bit address
-    write_single_debug_byte(0x000c, (addr >> 16) & 0xff);
-    write_single_debug_byte(0x000c, (addr >> 8) & 0xff);
-    write_single_debug_byte(0x000c, addr & 0xff);
+// 24-bit address  
+write_single_debug_byte(0x000c, (addr >> 16) & 0xff);  
+write_single_debug_byte(0x000c, (addr >> 8) & 0xff);  
+write_single_debug_byte(0x000c, addr & 0xff);  
 
-    // FIFO mode
-    write_single_debug_byte(0x00b3, 0x80);
+// FIFO mode  
+write_single_debug_byte(0x00b3, 0x80);
+
 }
 
 static uint8_t flash_read_next()
 {
-    write_single_debug_byte(0x000c, 0xff);
+write_single_debug_byte(0x000c, 0xff);
 
-    return read_single_debug_byte(0x000c);
+return read_single_debug_byte(0x000c);
+
 }
 
 static void flash_read_end()
 {
+write_single_debug_byte(0x00b3, 0x00);
+
+flash_cs_high();
+
+}
+
+static void flash_read_jedec_id(void)
+{
+    flash_cs_low();
+
+    // JEDEC ID command
+    write_single_debug_byte(0x000c, 0x9F);
+
+    // FIFO mode
+    write_single_debug_byte(0x00b3, 0x80);
+
+    // Dummy clocks
+    write_single_debug_byte(0x000c, 0xFF);
+    uint8_t mfr = read_single_debug_byte(0x000c);
+
+    write_single_debug_byte(0x000c, 0xFF);
+    uint8_t type = read_single_debug_byte(0x000c);
+
+    write_single_debug_byte(0x000c, 0xFF);
+    uint8_t cap = read_single_debug_byte(0x000c);
+
     write_single_debug_byte(0x00b3, 0x00);
 
     flash_cs_high();
+
+    printf("# JEDEC ID = %02X %02X %02X\n",
+        mfr, type, cap);
+
+    // Beberapa flash umum
+    if (mfr == 0xC8)
+        printf("# Manufacturer : GigaDevice\n");
+    else if (mfr == 0xEF)
+        printf("# Manufacturer : Winbond\n");
+    else if (mfr == 0x20)
+        printf("# Manufacturer : Micron/ST\n");
+    else if (mfr == 0x1C)
+        printf("# Manufacturer : EON\n");
+    else
+        printf("# Manufacturer : Unknown\n");
+
+    printf("S\n");
 }
 
 static void flash_write_enable()
 {
-    flash_cs_low();
+flash_cs_low();
 
-    // SPI Flash: Write Enable
-    write_single_debug_byte(0x000c, 0x06);
+// SPI Flash: Write Enable  
+write_single_debug_byte(0x000c, 0x06);  
 
-    flash_cs_high();
+flash_cs_high();
+
 }
 static uint8_t flash_read_status()
 {
-    uint8_t status;
+uint8_t status;
 
-    flash_cs_low();
+flash_cs_low();  
 
-    // Read Status Register-1
-    write_single_debug_byte(0x000c, 0x05);
+// Read Status Register-1  
+write_single_debug_byte(0x000c, 0x05);  
 
-    // FIFO read mode
-    write_single_debug_byte(0x00b3, 0x80);
+// FIFO read mode  
+write_single_debug_byte(0x00b3, 0x80);  
 
-    // Dummy byte
-    write_single_debug_byte(0x000c, 0xff);
+// Dummy byte  
+write_single_debug_byte(0x000c, 0xff);  
 
-    status = read_single_debug_byte(0x000c);
+status = read_single_debug_byte(0x000c);  
 
-    write_single_debug_byte(0x00b3, 0x00);
+write_single_debug_byte(0x00b3, 0x00);  
 
-    flash_cs_high();
+flash_cs_high();  
 
-    return status;
+return status;
+
 }
 static void flash_wait_busy()
 {
-    while (flash_read_status() & 0x01)
-        ;
+while (flash_read_status() & 0x01)
+;
 }
 
 static void flash_page_program(uint32_t addr, const uint8_t* data, uint16_t len)
 {
-    flash_write_enable();
+flash_write_enable();
 
-    flash_cs_low();
+flash_cs_low();  
 
-    // Page Program
-    write_single_debug_byte(0x000c, 0x02);
+// Page Program  
+write_single_debug_byte(0x000c, 0x02);  
 
-    // Address
-    write_single_debug_byte(0x000c, (addr >> 16) & 0xff);
-    write_single_debug_byte(0x000c, (addr >> 8) & 0xff);
-    write_single_debug_byte(0x000c, addr & 0xff);
+// Address  
+write_single_debug_byte(0x000c, (addr >> 16) & 0xff);  
+write_single_debug_byte(0x000c, (addr >> 8) & 0xff);  
+write_single_debug_byte(0x000c, addr & 0xff);  
 
-    // Data
-    for (uint16_t i = 0; i < len; i++)
-        write_single_debug_byte(0x000c, data[i]);
+// Data  
+for (uint16_t i = 0; i < len; i++)  
+    write_single_debug_byte(0x000c, data[i]);  
 
-    flash_cs_high();
+flash_cs_high();  
 
-    flash_wait_busy();
+flash_wait_busy();
+
+}
+
+static void flash_program(uint32_t addr, const uint8_t* data, uint32_t len)
+{
+while (len)
+{
+uint16_t page_remaining = 256 - (addr & 0xff);
+
+uint16_t chunk =  
+        (len < page_remaining) ? len : page_remaining;  
+
+    flash_page_program(addr, data, chunk);  
+
+    addr += chunk;  
+    data += chunk;  
+    len -= chunk;  
+}
+
 }
 
 static void flash_sector_erase(uint32_t addr)
 {
-    flash_write_enable();
+flash_write_enable();
 
-    flash_cs_low();
+flash_cs_low();  
 
-    // Sector Erase (4KB)
-    write_single_debug_byte(0x000c, 0x20);
+// Sector Erase (4KB)  
+write_single_debug_byte(0x000c, 0x20);  
 
-    // 24-bit address
-    write_single_debug_byte(0x000c, (addr >> 16) & 0xff);
-    write_single_debug_byte(0x000c, (addr >> 8) & 0xff);
-    write_single_debug_byte(0x000c, addr & 0xff);
+// 24-bit address  
+write_single_debug_byte(0x000c, (addr >> 16) & 0xff);  
+write_single_debug_byte(0x000c, (addr >> 8) & 0xff);  
+write_single_debug_byte(0x000c, addr & 0xff);  
 
-    flash_cs_high();
+flash_cs_high();  
 
-    flash_wait_busy();
+flash_wait_busy();
+
 }
 
 static void flash_chip_erase(void)
 {
-    flash_write_enable();
+flash_write_enable();
 
-    flash_cs_low();
+flash_cs_low();  
 
-    // CHIP ERASE
-    write_single_debug_byte(0x000c, 0xC7);
+// CHIP ERASE  
+write_single_debug_byte(0x000c, 0xC7);  
 
-    flash_cs_high();
+flash_cs_high();  
 
-    flash_wait_busy();
+flash_wait_busy();
+
 }
 
 static void flash_program_test()
 {
-    uint8_t value = 0x55;
+uint8_t value = 0x55;
 
-    printf("# programming 1 byte...\n");
+printf("# programming 1 byte...\n");  
 
-    flash_page_program(0x000000, &value, 1);
+flash_page_program(0x000000, &value, 1);  
 
-    printf("# done\n");
+printf("# done\n");
+
 }
 
 static void flash_program_buffer(uint32_t addr, uint16_t len)
 {
-    printf("# programming %u bytes at %06X\n",
-        (unsigned)len,
-        (unsigned)addr);
+printf("# programming %u bytes at %06X\n",
+(unsigned)len,
+(unsigned)addr);
 
-    flash_page_program(addr, page_buffer, len);
+flash_program(addr, page_buffer, len);  
 
-    bytes_programmed += len;
+bytes_programmed += len;  
 
-    printf("# total programmed = %lu bytes\n",
-    (unsigned long)bytes_programmed);
+printf("# total programmed = %lu bytes\n",  
+(unsigned long)bytes_programmed);  
 
-    printf("# done\n");
+printf("# done\n");
+
 }
 
-static bool flash_verify_buffer(uint32_t addr, uint16_t len)
+//Prototype
+static bool flash_verify_buffer(uint32_t addr, uint16_t len);
+//over
+
+static bool flash_program_stream(uint32_t addr, uint32_t len)
 {
-    printf("# verifying %u bytes at %06X\n",
-        (unsigned)len,
-        (unsigned)addr);
-
-    flash_read_start(addr);
-
-    for (uint16_t i = 0; i < len; i++)
+    while (len)
     {
-        uint8_t actual = flash_read_next();
+        uint16_t chunk = (len > 256) ? 256 : len;
 
-        if (actual != page_buffer[i])
+        for (uint16_t i = 0; i < chunk; i++)
+            page_buffer[i] = read_hex_byte();
+
+        printf("# programming %u bytes @ %06X\n",
+               chunk,
+               (unsigned)addr);
+
+        flash_program(addr, page_buffer, chunk);
+
+        if (!flash_verify_buffer(addr, chunk))
         {
-            flash_read_end();
-
-            printf("# verify failed\n");
-            printf("# addr     = %06X\n", (unsigned)(addr + i));
-            printf("# expected = %02X\n", page_buffer[i]);
-            printf("# actual   = %02X\n", actual);
-
+            printf("# verify failed at %06X\n", (unsigned)addr);
             return false;
         }
+
+        bytes_programmed += chunk;
+
+        addr += chunk;
+        len -= chunk;
     }
-
-    flash_read_end();
-
-    printf("# verify ok\n");
 
     return true;
 }
 
+static bool flash_verify_buffer(uint32_t addr, uint16_t len)
+{
+printf("# verifying %u bytes at %06X\n",
+(unsigned)len,
+(unsigned)addr);
+
+flash_read_start(addr);  
+
+for (uint16_t i = 0; i < len; i++)  
+{  
+    uint8_t actual = flash_read_next();  
+
+    if (actual != page_buffer[i])  
+    {  
+        flash_read_end();  
+
+        printf("# verify failed\n");  
+        printf("# addr     = %06X\n", (unsigned)(addr + i));  
+        printf("# expected = %02X\n", page_buffer[i]);  
+        printf("# actual   = %02X\n", actual);  
+
+        return false;  
+    }  
+}  
+
+flash_read_end();  
+
+printf("# verify ok\n");  
+
+return true;
+
+}
+
 static void flash_erase_test()
 {
-    printf("# erasing sector...\n");
+printf("# erasing sector...\n");
 
-    flash_sector_erase(0x000000);
+flash_sector_erase(0x000000);  
 
-    printf("# erase done\n");
+printf("# erase done\n");
+
 }
 
 static void flash_chip_erase_test()
 {
-    printf("# WARNING: CHIP ERASE\n");
-    printf("# This may take several seconds...\n");
+printf("# WARNING: CHIP ERASE\n");
+printf("# This may take several seconds...\n");
 
-    flash_chip_erase();
+flash_chip_erase();  
 
-    printf("# chip erase done\n");
+printf("# chip erase done\n");
+
 }
 
 static void halt_target()
 {
-    write_single_debug_byte(reg_debug_runstate, 0x05);
+write_single_debug_byte(reg_debug_runstate, 0x05);
 }
 
 static void flash_test()
 {
-    printf("# flash test\n");
+printf("# flash test\n");
 
-    flash_read_start(0x000000);
+flash_read_start(0x000000);
 
 for (int i = 0; i < 16; i++)
 {
-    printf("%02x", flash_read_next());
- }
+printf("%02x", flash_read_next());
+}
 
-    flash_read_end();
+flash_read_end();  
 
-    printf("\nS\n");
+printf("\nS\n");
+
 }
 
 static void set_target_clock_speed(uint8_t speed)
 {
-    write_single_debug_byte(reg_swire_clk_div, speed);
+write_single_debug_byte(reg_swire_clk_div, speed);
 }
 
 static void banner()
 {
-    printf(
-        "# Telink debugger bridge\n"
-        "# Fork by: Novan24\n"
-        "# Mod_Ver: 2.8\n"
-        "# Changes: Added Flash Verification\n"
-        "# i            verify connection to device\n"
-        "# rX           X=[0, 1] set status of reset pin\n"
-        "# g            take device out of reset\n"
-        "# s            read device socid\n"
-        "# V            show firmware version\n"
-        "# t            Flash Test\n"
-        "# F            dump full flash\n"
-        "# DAAAAALLLL  Dump flash (address,count hex)\n"
-        "# B            read flash status register\n"
-        "# E            flash write enable\n"
-        "# X            erase sector 0x000000 (test)\n"
-        "# C            CHIP ERASE (This will ERASE the entire flash!)\n"
-        "# UAAAAAALLLLDD... program bytes to flash\n"
-        "# YAAAAAALLLLDD... verify bytes in flash\n"
-        "# RXXXXYYYY    read YYYY bytes from XXXX (values in hex)\n"
-        "# WXXXXYYYY... write YYYY bytes to XXXX, folowed by hex pairs\n"
-        "# Responses are S for success, E for error, and # is a comment.\n"
-        "# Good luck (you'll need it).\n");
+printf(
+"# Telink debugger bridge\n"
+"# Fork by: Novan24\n"
+"# Mod_Ver: 2.9\n"
+"# Changes: Added Stream Programming\n"
+"# i            verify connection to device\n"
+"# rX           X=[0, 1] set status of reset pin\n"
+"# g            take device out of reset\n"
+"# s            read device socid\n"
+"# t            Flash Test\n"
+"# F            dump full flash\n"
+"# DAAAAALLLL  Dump flash (address,count hex)\n"
+"A AAAAAAALLLLLLDD... stream program + verify\n"
+"# B            read flash status register\n"
+"# E            flash write enable\n"
+"# X            erase sector 0x000000 (test)\n"
+"# C            CHIP ERASE (This will ERASE the entire flash!)\n"
+"# J            read JEDEC flash ID\n"
+"# UAAAAAALLLLDD... program bytes to flash\n"
+"# YAAAAAALLLLDD... verify bytes in flash\n"
+"# RXXXXYYYY    read YYYY bytes from XXXX (values in hex)\n"
+"# WXXXXYYYY... write YYYY bytes to XXXX, folowed by hex pairs\n"
+"# Responses are S for success, E for error, and # is a comment.\n"
+"# Good luck (you'll need it).\n");
 }
 
 static void init_cmd()
 {
-    printf("# init\n");
+printf("# init\n");
 
-    gpio_put(RST_PIN, false);
-    sleep_ms(20);
-    gpio_put(RST_PIN, true);
-    sleep_ms(20);
-    
-    printf("# reset done\n");
-    
-    halt_target();
-    
-    printf("# halted\n");
+gpio_put(RST_PIN, false);  
+sleep_ms(20);  
+gpio_put(RST_PIN, true);  
+sleep_ms(20);  
+  
+printf("# reset done\n");  
+  
+halt_target();  
+  
+printf("# halted\n");  
 
-    uint16_t socid = read_single_debug_word(reg_soc_id);
-    printf("# socid = 0x%04x\n", socid);
-    if (socid == 0x5316)
-    {
-        printf("S\n");
-        is_connected = true;
+uint16_t socid = read_single_debug_word(reg_soc_id);  
+printf("# socid = 0x%04x\n", socid);  
+if (socid == 0x5316)  
+{  
+    printf("S\n");  
+    is_connected = true;  
 
-        /* Disable the watchdog timer. */
+    /* Disable the watchdog timer. */  
 
-        write_single_debug_quad(reg_tmr_ctl, 0);
-        return;
-    }
+    write_single_debug_quad(reg_tmr_ctl, 0);  
+    return;  
+}  
 
-    printf("E\n# init failed\n");
+printf("E\n# init failed\n");
+
 }
 
 static uint8_t read_hex_byte()
 {
-    char buffer[3];
-    buffer[0] = getchar();
-    buffer[1] = getchar();
-    buffer[2] = 0;
-    return strtoul(buffer, nullptr, 16);
+char buffer[3];
+buffer[0] = getchar();
+buffer[1] = getchar();
+buffer[2] = 0;
+return strtoul(buffer, nullptr, 16);
 }
 
 static uint16_t read_hex_word()
 {
-    uint8_t hi = read_hex_byte();
-    uint8_t lo = read_hex_byte();
-    return lo | (hi << 8);
+uint8_t hi = read_hex_byte();
+uint8_t lo = read_hex_byte();
+return lo | (hi << 8);
 }
 
 static uint32_t read_hex_addr24()
 {
-    uint8_t b2 = read_hex_byte();
-    uint8_t b1 = read_hex_byte();
-    uint8_t b0 = read_hex_byte();
+uint8_t b2 = read_hex_byte();
+uint8_t b1 = read_hex_byte();
+uint8_t b0 = read_hex_byte();
 
-    return ((uint32_t)b2 << 16) |
-           ((uint32_t)b1 << 8) |
-            b0;
+return ((uint32_t)b2 << 16) |  
+       ((uint32_t)b1 << 8) |  
+        b0;
+
+}
+
+static uint32_t read_hex_dword()
+{
+uint8_t b3 = read_hex_byte();
+uint8_t b2 = read_hex_byte();
+uint8_t b1 = read_hex_byte();
+uint8_t b0 = read_hex_byte();
+
+return ((uint32_t)b3 << 24) |  
+       ((uint32_t)b2 << 16) |  
+       ((uint32_t)b1 << 8)  |  
+        b0;
+
 }
 
 void set_tx_clock(double clock_hz)
 {
-    sws_tx_program_init(pio0, SM_TX, sws_tx_program_offset, SWS_PIN, clock_hz);
-    pio_sm_set_enabled(pio0, SM_TX, true);
+sws_tx_program_init(pio0, SM_TX, sws_tx_program_offset, SWS_PIN, clock_hz);
+pio_sm_set_enabled(pio0, SM_TX, true);
 }
 static void flash_dump_range(uint32_t addr, uint32_t count, bool print_status)
 {
-    flash_read_start(addr);
+flash_read_start(addr);
 
-    for (uint32_t i = 0; i < count; i++)
-    {
-        if ((i % 16) == 0)
-            printf("%06X: ", (unsigned)(addr + i));
+for (uint32_t i = 0; i < count; i++)  
+{  
+    if ((i % 16) == 0)  
+        printf("%06X: ", (unsigned)(addr + i));  
 
-        printf("%02X ", flash_read_next());
+    printf("%02X ", flash_read_next());  
 
-        if ((i % 16) == 15 || i == count - 1)
-            printf("\n");
-    }
+    if ((i % 16) == 15 || i == count - 1)  
+        printf("\n");  
+}  
 
-    flash_read_end();
+flash_read_end();  
 
-    if (print_status)
-        printf("S\n");
+if (print_status)  
+    printf("S\n");
+
 }
 
 static void flash_dump(uint32_t addr, uint16_t count)
 {
-    printf("# flash dump addr=0x%06X len=%u\n",
-           (unsigned)addr,
-           (unsigned)count);
+printf("# flash dump addr=0x%06X len=%u\n",
+(unsigned)addr,
+(unsigned)count);
 
-    flash_dump_range(addr, count, true);
+flash_dump_range(addr, count, true);
+
 }
 
 static void flash_dump_all(void)
 {
-    printf("# full flash dump start\n");
-    flash_dump_range(0x000000, FLASH_DUMP_TOTAL, false);
-    printf("S\n");
+printf("# full flash dump start\n");
+flash_dump_range(0x000000, FLASH_DUMP_TOTAL, false);
+printf("S\n");
 }
 
 int main(void)
 {
-    usb_bridge_init();
-    stdio_queue_init();
+usb_bridge_init();
+stdio_queue_init();
 
-    gpio_init(RST_PIN);
-    gpio_set_dir(RST_PIN, true);
-    gpio_put(RST_PIN, false);
+gpio_init(RST_PIN);  
+gpio_set_dir(RST_PIN, true);  
+gpio_put(RST_PIN, false);  
 
-    gpio_set_pulls(RST_PIN, false, false);
-    gpio_set_pulls(SWS_PIN, true, false);
-    gpio_set_pulls(DBG_PIN, false, false);
+gpio_set_pulls(RST_PIN, false, false);  
+gpio_set_pulls(SWS_PIN, true, false);  
+gpio_set_pulls(DBG_PIN, false, false);  
 
-    sws_tx_program_offset = pio_add_program(pio0, &sws_tx_program);
-    set_tx_clock(10.0e6);
+sws_tx_program_offset = pio_add_program(pio0, &sws_tx_program);  
+set_tx_clock(10.0e6);  
 
-    sws_rx_program_offset = pio_add_program(pio1, &sws_rx_program);
-    sws_rx_program_init(pio1, SM_RX, sws_rx_program_offset, SWS_PIN);
-    pio_sm_set_enabled(pio1, SM_RX, true);
+sws_rx_program_offset = pio_add_program(pio1, &sws_rx_program);  
+sws_rx_program_init(pio1, SM_RX, sws_rx_program_offset, SWS_PIN);  
+pio_sm_set_enabled(pio1, SM_RX, true);  
 
-    banner();
-    for (;;)
-    {
-        int c = getchar();
-        printf("# RX = 0x%02X\n", (uint8_t)c);
-        switch (c)
-        {
-            case '\r':
-            case '\n':
-                break;
-            case 'i':
-                init_cmd();
-                break;
+banner();  
+for (;;)  
+{  
+    int c = getchar();  
+    printf("# RX = 0x%02X\n", (uint8_t)c);  
+    switch (c)  
+    {  
+        case '\r':  
+        case '\n':  
+            break;  
+        case 'i':  
+            init_cmd();  
+            break;  
 
-            case 'r':
-            {
-                int i = getchar() == '1';
-                printf("# reset <- %d\n", i);
-                gpio_put(RST_PIN, i);
-                if (i == 0)
-                    is_connected = false;
-                printf("S\n");
-                break;
-            }
+        case 'r':  
+        {  
+            int i = getchar() == '1';  
+            printf("# reset <- %d\n", i);  
+            gpio_put(RST_PIN, i);  
+            if (i == 0)  
+                is_connected = false;  
+            printf("S\n");  
+            break;  
+        }
 
 case 'B':
 {
-    if (!is_connected)
-    {
-        printf("E\n");
-        break;
-    }
-
-    printf("# status = %02X\n", flash_read_status());
-    printf("S\n");
-    break;
+if (!is_connected)
+{
+printf("E\n");
+break;
 }
 
-            case 'g':
-            {
-                gpio_put(RST_PIN, 0);
-                sleep_us(100);
-                gpio_put(RST_PIN, 1);
-                sleep_us(100);
-                break;
-            }
+printf("# status = %02X\n", flash_read_status());  
+printf("S\n");  
+break;
 
-            case 's':
-            {
-                uint16_t socid = read_single_debug_word(reg_soc_id);
-                printf("# socid = %04x\nS\n", socid);
-                break;
-            }
+}
 
-            case 't':
-            {
-                if (!is_connected)
-            {
-                printf("# not connected\nE\n");
-                break;
-            }
+case 'g':  
+        {  
+            gpio_put(RST_PIN, 0);  
+            sleep_us(100);  
+            gpio_put(RST_PIN, 1);  
+            sleep_us(100);  
+            break;  
+        }  
 
-                    flash_test();
-                break;
-            }
+        case 's':  
+        {  
+            uint16_t socid = read_single_debug_word(reg_soc_id);  
+            printf("# socid = %04x\nS\n", socid);  
+            break;  
+        }  
 
-            case 'D':
-                {
-                if (!is_connected)
-            {
-                printf("# not connected\nE\n");
-                break;
-            }
+        case 't':  
+        {  
+            if (!is_connected)  
+        {  
+            printf("# not connected\nE\n");  
+            break;  
+        }  
 
-                uint32_t addr = read_hex_addr24();
-                uint16_t count = read_hex_word();
+                flash_test();  
+            break;  
+        }  
 
-                flash_dump(addr, count);
-            break;
-            }
+        case 'D':  
+            {  
+            if (!is_connected)  
+        {  
+            printf("# not connected\nE\n");  
+            break;  
+        }  
 
-            case 'F':
-                {
-                if (!is_connected)
-            {
-                printf("# not connected\nE\n");
-                break;
-            }
+            uint32_t addr = read_hex_addr24();  
+            uint16_t count = read_hex_word();  
 
-                flash_dump_all();
-                break;
-            }
+            flash_dump(addr, count);  
+        break;  
+        }  
 
-            case 'E':
+        case 'F':  
+            {  
+            if (!is_connected)  
+        {  
+            printf("# not connected\nE\n");  
+            break;  
+        }  
+
+            flash_dump_all();  
+            break;  
+        }  
+
+        case 'E':
+
 {
-    if (!is_connected)
-    {
-        printf("# not connected\n");
-        printf("E\n");
-        break;
-    }
+if (!is_connected)
+{
+printf("# not connected\n");
+printf("E\n");
+break;
+}
 
-    flash_write_enable();
+flash_write_enable();
 
 sleep_us(20);
 
 printf("# status = %02X\n", flash_read_status());
 
-    printf("S\n");
-    break;
+printf("S\n");  
+break;
+
 }
 
 case 'P':
 {
-    if (!is_connected)
-    {
-        printf("E\n");
-        break;
-    }
+if (!is_connected)
+{
+printf("E\n");
+break;
+}
 
-    flash_program_test();
+flash_program_test();  
 
-    printf("S\n");
-    break;
+printf("S\n");  
+break;
+
 }
 
 case 'X':
 {
-    if (!is_connected)
-    {
-        printf("E\n");
-        break;
-    }
+if (!is_connected)
+{
+printf("E\n");
+break;
+}
 
-    flash_erase_test();
+flash_erase_test();  
 
-    printf("S\n");
-    break;
+printf("S\n");  
+break;
+
 }
 case 'C':
 {
-    if (!is_connected)
-    {
-        printf("E\n");
-        break;
-    }
+if (!is_connected)
+{
+printf("E\n");
+break;
+}
 
-    flash_chip_erase_test();
+flash_chip_erase_test();  
 
-    printf("S\n");
-    break;
+printf("S\n");  
+break;
+
 }
 case 'U':
 {
-    if (!is_connected)
-    {
-        printf("E\n");
-        break;
-    }
+if (!is_connected)
+{
+printf("E\n");
+break;
+}
 
-    uint32_t addr = read_hex_addr24();
-    uint16_t len = read_hex_word();
+uint32_t addr = read_hex_addr24();  
+uint16_t len = read_hex_word();  
 
-    if (len > 256)
-    {
-        printf("# max 256 bytes\n");
-        printf("E\n");
-        break;
-    }
+if (len > 256)  
+{  
+    printf("# max 256 bytes\n");  
+    printf("E\n");  
+    break;  
+}  
 
-    for (uint16_t i = 0; i < len; i++)
-        page_buffer[i] = read_hex_byte();
+for (uint16_t i = 0; i < len; i++)  
+    page_buffer[i] = read_hex_byte();  
 
-    flash_program_buffer(addr, len);
+flash_program_buffer(addr, len);  
 
-    printf("S\n");
-    break;
+printf("S\n");  
+break;
+
 }
 
 case 'Y':
 {
+if (!is_connected)
+{
+printf("E\n");
+break;
+}
+
+uint32_t addr = read_hex_addr24();  
+uint16_t len = read_hex_word();  
+
+if (len > 256)  
+{  
+    printf("# max 256 bytes\n");  
+    printf("E\n");  
+    break;  
+}  
+
+for (uint16_t i = 0; i < len; i++)  
+    page_buffer[i] = read_hex_byte();  
+
+if (flash_verify_buffer(addr, len))  
+    printf("S\n");  
+else  
+    printf("E\n");  
+
+break;
+
+}
+
+case 'A':
+{
+if (!is_connected)
+{
+printf("# not connected\n");
+printf("E\n");
+break;
+}
+
+uint32_t addr = read_hex_addr24();  
+uint32_t len  = read_hex_dword();  
+
+printf("# stream program\n");  
+printf("# addr  = %06X\n", (unsigned)addr);  
+printf("# bytes = %lu\n", (unsigned long)len);  
+
+bytes_programmed = 0;  
+
+if (flash_program_stream(addr, len))  
+{  
+    printf("# total programmed = %lu bytes\n",  
+           (unsigned long)bytes_programmed);  
+
+    printf("S\n");  
+}  
+else  
+    printf("E\n");  
+
+break;
+
+}
+case 'J':
+{
     if (!is_connected)
     {
         printf("E\n");
         break;
     }
 
-    uint32_t addr = read_hex_addr24();
-    uint16_t len = read_hex_word();
-
-    if (len > 256)
-    {
-        printf("# max 256 bytes\n");
-        printf("E\n");
-        break;
-    }
-
-    for (uint16_t i = 0; i < len; i++)
-        page_buffer[i] = read_hex_byte();
-
-    if (flash_verify_buffer(addr, len))
-        printf("S\n");
-    else
-        printf("E\n");
-
+    flash_read_jedec_id();
     break;
 }
 
-case 'V':
-{
-    printf("# Telink Debugger Bridge\n");
-    printf("# Version 2.7\n");
-    printf("S\n");
-    break;
+case 'R':  
+        {  
+            uint16_t address = read_hex_word();  
+            uint16_t count = read_hex_word();  
+
+            if (count)  
+            {  
+                uint8_t b = read_first_debug_byte(address);  
+                printf("%02x", b);  
+                count--;  
+
+                while (count--)  
+                {  
+                    b = read_next_debug_byte();  
+                    printf("%02x", b);  
+                }  
+
+                finish_reading_debug_bytes();  
+                printf("\n");  
+            }  
+            printf("S\n");  
+            break;  
+        }  
+
+        case 'W':  
+        {  
+            uint16_t address = read_hex_word();  
+            uint16_t count = read_hex_word();  
+
+            if (count)  
+            {  
+                uint8_t b = read_hex_byte();  
+                write_first_debug_byte(address, b);  
+                count--;  
+
+                while (count--)  
+                {  
+                    b = read_hex_byte();  
+                    write_next_debug_byte(b);  
+                }  
+
+                finish_writing_debug_bytes();  
+            }  
+
+            printf("S\n");  
+            break;  
+        }  
+
+        case '?':  
+            banner();  
+            break;  
+
+        default:  
+            printf("?\n");  
+            printf("# unknown command\n");  
+    }  
 }
 
-            case 'R':
-            {
-                uint16_t address = read_hex_word();
-                uint16_t count = read_hex_word();
-
-                if (count)
-                {
-                    uint8_t b = read_first_debug_byte(address);
-                    printf("%02x", b);
-                    count--;
-
-                    while (count--)
-                    {
-                        b = read_next_debug_byte();
-                        printf("%02x", b);
-                    }
-
-                    finish_reading_debug_bytes();
-                    printf("\n");
-                }
-                printf("S\n");
-                break;
-            }
-
-            case 'W':
-            {
-                uint16_t address = read_hex_word();
-                uint16_t count = read_hex_word();
-
-                if (count)
-                {
-                    uint8_t b = read_hex_byte();
-                    write_first_debug_byte(address, b);
-                    count--;
-
-                    while (count--)
-                    {
-                        b = read_hex_byte();
-                        write_next_debug_byte(b);
-                    }
-
-                    finish_writing_debug_bytes();
-                }
-
-                printf("S\n");
-                break;
-            }
-
-            case '?':
-                banner();
-                break;
-
-            default:
-                printf("?\n");
-                printf("# unknown command\n");
-        }
-    }
 }
