@@ -416,15 +416,15 @@ printf("# done\n");
 
 }
 
-static uint8_t read_hex_byte()
-{
 static char get_hex_char(void)
 {
     char c;
 
-    do {
+    do
+    {
         c = getchar();
-    } while (c == '\r' || c == '\n');
+    }
+    while (c == '\r' || c == '\n');
 
     return c;
 }
@@ -438,9 +438,6 @@ static uint8_t read_hex_byte(void)
     buffer[2] = 0;
 
     return strtoul(buffer, nullptr, 16);
-}
-
-return strtoul(buffer, nullptr, 16);
 }
 
 static uint16_t read_hex_word()
