@@ -450,6 +450,9 @@ uint8_t b3 = read_hex_byte();
 uint8_t b2 = read_hex_byte();
 uint8_t b1 = read_hex_byte();
 uint8_t b0 = read_hex_byte();
+//Temporary debug
+printf("# dword bytes = %02X %02X %02X %02X\n", b3, b2, b1, b0);
+//debug end
 
 return ((uint32_t)b3 << 24) |  
        ((uint32_t)b2 << 16) |  
@@ -499,6 +502,10 @@ static bool flash_program_stream(uint32_t addr, uint32_t len)
 
         for (uint16_t i = 0; i < chunk; i++)
             page_buffer[i] = read_hex_byte();
+
+        //Temporary debug
+        printf("# first byte = %02X\n", page_buffer[0]);
+    
 
         printf("# programming %u bytes @ %06X\n",
                chunk,
@@ -920,6 +927,12 @@ break;
 
 uint32_t addr = read_hex_addr24();  
 uint32_t len  = read_hex_dword();  
+
+//Temporary debug
+printf("# addr = %06X\n", (unsigned)addr);
+printf("# len  = %08lX (%lu)\n",
+       (unsigned long)len,
+       (unsigned long)len);
 
 printf("# stream program\n");  
 printf("# addr  = %06X\n", (unsigned)addr);  
