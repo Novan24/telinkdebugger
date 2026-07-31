@@ -163,6 +163,22 @@ static void finish_writing_debug_bytes()
 write_cmd_byte(0xff);
 }
 
+static void write_multiple_debug_bytes(
+    uint16_t address,
+    const uint8_t* data,
+    uint16_t len)
+{
+    if (len == 0)
+        return;
+
+    write_first_debug_byte(address, data[0]);
+
+    for (uint16_t i = 1; i < len; i++)
+        write_next_debug_byte(data[i]);
+
+    finish_writing_debug_bytes();
+}
+
 static void write_single_debug_byte(uint16_t address, uint8_t value)
 {
 write_first_debug_byte(address, value);
@@ -312,26 +328,30 @@ while (flash_read_status() & 0x01)
 
 static void flash_page_program(uint32_t addr, const uint8_t* data, uint16_t len)
 {
-flash_write_enable();
+    flash_write_enable();
 
-flash_cs_low();  
+    flash_cs_low();
 
-// Page Program  
-write_single_debug_byte(0x000c, 0x02);  
+    // Page Program
+    write_single_debug_byte(0x000c, 0x02);
 
-// Address  
-write_single_debug_byte(0x000c, (addr >> 16) & 0xff);  
-write_single_debug_byte(0x000c, (addr >> 8) & 0xff);  
-write_single_debug_byte(0x000c, addr & 0xff);  
+    // Address
+    write_single_debug_byte(0x000c, (addr >> 16) & 0xff);
+    write_single_debug_byte(0x000c, (addr >> 8) & 0xff);
+    write_single_debug_byte(0x000c, addr & 0xff);
 
-// Data  
-for (uint16_t i = 0; i < len; i++)  
-    write_single_debug_byte(0x000c, data[i]);  
+    // FIFO mode (sesuai implementasi Python)
+    write_single_debug_byte(0x00b3, 0x80);
 
-flash_cs_high();  
+    // Kirim seluruh data dalam SATU transaksi SWS
+    write_multiple_debug_bytes(0x000c, data, len);
 
-flash_wait_busy();
+    // Kembali ke RAM mode
+    write_single_debug_byte(0x00b3, 0x00);
 
+    flash_cs_high();
+
+    flash_wait_busy();
 }
 
 static void flash_program(uint32_t addr, const uint8_t* data, uint32_t len)
@@ -594,7 +614,7 @@ static void banner()
 printf(
 "# Telink debugger bridge\n"
 "# Fork by: Novan24\n"
-"# Mod_Ver: 3.0\n"
+"# Mod_Ver: 3.1\n"
 "# Changes:\n"
 "#  - Added Stream Programming\n"
 "#  - Automatic Verify\n"
@@ -602,6 +622,10 @@ printf(
 "#  - Full Flash Dump\n"
 "#  - Flash Utility Commands\n"
 "# i            verify connection to device\n"
+"# J            read JEDEC flash ID\n"
+"# B            read flash status register\n"
+"# E            flash write enable\n"
+"# Y            Verify\n"
 "# rX           X=[0, 1] set status of reset pin\n"
 "# g            take device out of reset\n"
 "# s            read device socid\n"
@@ -609,11 +633,8 @@ printf(
 "# F            dump full flash\n"
 "# DAAAAALLLL  Dump flash (address,count hex)\n"
 "A AAAAAAALLLLLLDD... stream program + verify\n"
-"# B            read flash status register\n"
-"# E            flash write enable\n"
 "# X            erase sector 0x000000 (test)\n"
 "# C            CHIP ERASE (This will ERASE the entire flash!)\n"
-"# J            read JEDEC flash ID\n"
 "# UAAAAAALLLLDD... program bytes to flash\n"
 "# YAAAAAALLLLDD... verify bytes in flash\n"
 "# RXXXXYYYY    read YYYY bytes from XXXX (values in hex)\n"
