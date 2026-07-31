@@ -708,6 +708,7 @@ banner();
 for (;;)  
 {  
     int c = getchar();  
+    printf("# COMMAND = '%c' (%02X)\n", c, c);
     printf("# RX = 0x%02X\n", (uint8_t)c);  
     switch (c)  
     {  
