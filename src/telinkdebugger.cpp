@@ -539,10 +539,14 @@ static bool flash_program_stream(uint32_t addr, uint32_t len)
        (unsigned long)bytes_programmed,
        (unsigned long)(bytes_programmed + len));
     
+uint32_t current_page = (addr >> 8) + 1;
+uint32_t total_pages = (FLASH_DUMP_TOTAL >> 8);
 
-        printf("# programming %u bytes @ %06X\n",
-               chunk,
-               (unsigned)addr);
+printf("# Page %lu/%lu  Addr=%06X\n",
+       (unsigned long)current_page,
+       (unsigned long)total_pages,
+       (unsigned)addr);
+        
 
         flash_program(addr, page_buffer, chunk);
 
@@ -743,8 +747,6 @@ banner();
 for (;;)  
 {  
     int c = getchar();  
-    printf("# COMMAND = '%c' (%02X)\n", c, c);
-    printf("# RX = 0x%02X\n", (uint8_t)c);  
     switch (c)  
     {  
         case '\r':  
