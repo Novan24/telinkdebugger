@@ -418,13 +418,27 @@ printf("# done\n");
 
 static uint8_t read_hex_byte()
 {
-char buffer[3];
-buffer[0] = getchar();
-buffer[1] = getchar();
-buffer[2] = 0;
+static char get_hex_char(void)
+{
+    char c;
 
-//temporary debug
-printf("# hex chars = '%c%c'\n", buffer[0], buffer[1]);
+    do {
+        c = getchar();
+    } while (c == '\r' || c == '\n');
+
+    return c;
+}
+
+static uint8_t read_hex_byte(void)
+{
+    char buffer[3];
+
+    buffer[0] = get_hex_char();
+    buffer[1] = get_hex_char();
+    buffer[2] = 0;
+
+    return strtoul(buffer, nullptr, 16);
+}
 
 return strtoul(buffer, nullptr, 16);
 }
@@ -454,9 +468,6 @@ uint8_t b3 = read_hex_byte();
 uint8_t b2 = read_hex_byte();
 uint8_t b1 = read_hex_byte();
 uint8_t b0 = read_hex_byte();
-//Temporary debug
-printf("# dword bytes = %02X %02X %02X %02X\n", b3, b2, b1, b0);
-//debug end
 
 return ((uint32_t)b3 << 24) |  
        ((uint32_t)b2 << 16) |  
@@ -506,9 +517,10 @@ static bool flash_program_stream(uint32_t addr, uint32_t len)
 
         for (uint16_t i = 0; i < chunk; i++)
             page_buffer[i] = read_hex_byte();
-
-        //Temporary debug
-        printf("# first byte = %02X\n", page_buffer[0]);
+        
+        printf("# %lu / %lu\n",
+       (unsigned long)bytes_programmed,
+       (unsigned long)(bytes_programmed + len));
     
 
         printf("# programming %u bytes @ %06X\n",
@@ -585,8 +597,13 @@ static void banner()
 printf(
 "# Telink debugger bridge\n"
 "# Fork by: Novan24\n"
-"# Mod_Ver: 2.9\n"
-"# Changes: Added Stream Programming\n"
+"# Mod_Ver: 3.0\n"
+"# Changes:\n"
+"#  - Added Stream Programming\n"
+"#  - Automatic Verify\n"
+"#  - JEDEC Flash ID\n"
+"#  - Full Flash Dump\n"
+"#  - Flash Utility Commands\n"
 "# i            verify connection to device\n"
 "# rX           X=[0, 1] set status of reset pin\n"
 "# g            take device out of reset\n"
@@ -933,17 +950,27 @@ break;
 uint32_t addr = read_hex_addr24();  
 uint32_t len  = read_hex_dword();  
 
-//Temporary debug
-printf("# addr = %06X\n", (unsigned)addr);
-printf("# len  = %08lX (%lu)\n",
-       (unsigned long)len,
-       (unsigned long)len);
+//check
+if (len == 0)
+{
+    printf("# invalid length\n");
+    printf("E\n");
+    break;
+}
 
 printf("# stream program\n");  
 printf("# addr  = %06X\n", (unsigned)addr);  
 printf("# bytes = %lu\n", (unsigned long)len);  
 
 bytes_programmed = 0;  
+
+//protection
+if (addr + len > FLASH_DUMP_TOTAL)
+{
+    printf("# address out of range\n");
+    printf("E\n");
+    break;
+}
 
 if (flash_program_stream(addr, len))  
 {  
