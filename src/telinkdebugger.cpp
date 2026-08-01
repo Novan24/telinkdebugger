@@ -16,7 +16,7 @@ Copyright (c) 2024 David Given dg@cowlark.com
 #include "sws.pio.h"
 #include "globals.h"
 
-#define FLASH_DUMP_TOTAL 0x100000u
+#define FLASH_DUMP_TOTAL 0x80000u
 
 #define SWS_PIN 2
 #define RST_PIN 3
@@ -234,6 +234,28 @@ write_single_debug_byte(0x000c, 0xff);
 
 return read_single_debug_byte(0x000c);
 
+}
+
+// Burst version: opens ONE SWS envelope for the dummy-clock writes,
+// and ONE envelope for the reads, instead of one envelope per byte.
+// Mirrors the multi-byte pattern already used by write_multiple_debug_bytes()
+// and by the 'R' command handler for read_first/read_next_debug_byte.
+// NOTE: not yet wired into flash_dump_range()/flash_verify_buffer() --
+// validate against the existing byte-by-byte path first (see 'Z' test command).
+static void flash_read_multi(uint8_t* out, uint16_t len)
+{
+    if (len == 0)
+        return;
+
+    write_first_debug_byte(0x000c, 0xff);
+    for (uint16_t i = 1; i < len; i++)
+        write_next_debug_byte(0xff);
+    finish_writing_debug_bytes();
+
+    out[0] = read_first_debug_byte(0x000c);
+    for (uint16_t i = 1; i < len; i++)
+        out[i] = read_next_debug_byte();
+    finish_reading_debug_bytes();
 }
 
 static void flash_read_end()
@@ -627,6 +649,7 @@ printf(
 "#  - Flash Utility Commands\n"
 "# i            verify connection to device\n"
 "# J            read JEDEC flash ID\n"
+"# ZAAAAAA      burst-read 256 bytes @ addr (test cmd, compare vs D)\n"
 "# B            read flash status register\n"
 "# E            flash write enable\n"
 "# Y            Verify\n"
@@ -1014,6 +1037,33 @@ case 'J':
     }
 
     flash_read_jedec_id();
+    break;
+}
+
+case 'Z':
+{
+    // Burst-read validation: reads 256 bytes starting at a given address
+    // using flash_read_multi() (1 envelope for the read, not 256).
+    // Compare this output byte-for-byte against 'D' (addr, len=0100) at
+    // the same address. If they match, the burst path is safe to promote
+    // into flash_dump_range()/flash_verify_buffer().
+    if (!is_connected)
+    {
+        printf("E\n");
+        break;
+    }
+
+    uint32_t addr = read_hex_addr24();
+
+    flash_read_start(addr);
+    flash_read_multi(page_buffer, 256);
+    flash_read_end();
+
+    printf("# burst read test: 256 bytes @ %06X\n", (unsigned)addr);
+    for (int i = 0; i < 256; i++)
+        printf("%02X", page_buffer[i]);
+    printf("\n");
+    printf("S\n");
     break;
 }
 
