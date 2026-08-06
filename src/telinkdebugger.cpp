@@ -16,7 +16,7 @@ Copyright (c) 2024 David Given dg@cowlark.com
 #include "sws.pio.h"
 #include "globals.h"
 
-#define FLASH_DUMP_TOTAL 0x80000u
+#define FLASH_DUMP_TOTAL 0x100000u
 
 #define SWS_PIN 2
 #define RST_PIN 3
@@ -236,28 +236,6 @@ return read_single_debug_byte(0x000c);
 
 }
 
-// Burst version: opens ONE SWS envelope for the dummy-clock writes,
-// and ONE envelope for the reads, instead of one envelope per byte.
-// Mirrors the multi-byte pattern already used by write_multiple_debug_bytes()
-// and by the 'R' command handler for read_first/read_next_debug_byte.
-// NOTE: not yet wired into flash_dump_range()/flash_verify_buffer() --
-// validate against the existing byte-by-byte path first (see 'Z' test command).
-static void flash_read_multi(uint8_t* out, uint16_t len)
-{
-    if (len == 0)
-        return;
-
-    write_first_debug_byte(0x000c, 0xff);
-    for (uint16_t i = 1; i < len; i++)
-        write_next_debug_byte(0xff);
-    finish_writing_debug_bytes();
-
-    out[0] = read_first_debug_byte(0x000c);
-    for (uint16_t i = 1; i < len; i++)
-        out[i] = read_next_debug_byte();
-    finish_reading_debug_bytes();
-}
-
 static void flash_read_end()
 {
 write_single_debug_byte(0x00b3, 0x00);
@@ -310,42 +288,41 @@ static void flash_read_jedec_id(void)
 
 static void flash_write_enable()
 {
-flash_cs_low();
+    flash_cs_low();
 
 // SPI Flash: Write Enable  
-write_single_debug_byte(0x000c, 0x06);  
+    write_single_debug_byte(0x000c, 0x06);  
 
-flash_cs_high();
+    flash_cs_high();
 
 }
 static uint8_t flash_read_status()
 {
-uint8_t status;
+    uint8_t status;
 
-flash_cs_low();  
+    flash_cs_low();  
 
 // Read Status Register-1  
-write_single_debug_byte(0x000c, 0x05);  
+    write_single_debug_byte(0x000c, 0x05);  
 
 // FIFO read mode  
-write_single_debug_byte(0x00b3, 0x80);  
+    write_single_debug_byte(0x00b3, 0x80);  
 
 // Dummy byte  
-write_single_debug_byte(0x000c, 0xff);  
+    write_single_debug_byte(0x000c, 0xff);  
 
-status = read_single_debug_byte(0x000c);  
+    status = read_single_debug_byte(0x000c);  
 
-write_single_debug_byte(0x00b3, 0x00);  
+    write_single_debug_byte(0x00b3, 0x00);  
 
-flash_cs_high();  
+    flash_cs_high();  
 
-return status;
+    return status;
 
 }
 static void flash_wait_busy()
 {
-while (flash_read_status() & 0x01)
-;
+while (flash_read_status() & 0x01);
 }
 
 static void flash_page_program(uint32_t addr, const uint8_t* data, uint16_t len)
@@ -394,26 +371,6 @@ uint16_t chunk =
 
 }
 
-static void flash_sector_erase(uint32_t addr)
-{
-flash_write_enable();
-
-flash_cs_low();  
-
-// Sector Erase (4KB)  
-write_single_debug_byte(0x000c, 0x20);  
-
-// 24-bit address  
-write_single_debug_byte(0x000c, (addr >> 16) & 0xff);  
-write_single_debug_byte(0x000c, (addr >> 8) & 0xff);  
-write_single_debug_byte(0x000c, addr & 0xff);  
-
-flash_cs_high();  
-
-flash_wait_busy();
-
-}
-
 static void flash_chip_erase(void)
 {
 flash_write_enable();
@@ -426,18 +383,6 @@ write_single_debug_byte(0x000c, 0xC7);
 flash_cs_high();  
 
 flash_wait_busy();
-
-}
-
-static void flash_program_test()
-{
-uint8_t value = 0x55;
-
-printf("# programming 1 byte...\n");  
-
-flash_page_program(0x000000, &value, 1);  
-
-printf("# done\n");
 
 }
 
@@ -587,16 +532,6 @@ printf("# Page %lu/%lu  Addr=%06X\n",
     return true;
 }
 
-static void flash_erase_test()
-{
-printf("# erasing sector...\n");
-
-flash_sector_erase(0x000000);  
-
-printf("# erase done\n");
-
-}
-
 static void flash_chip_erase_test()
 {
 printf("# WARNING: CHIP ERASE\n");
@@ -613,23 +548,6 @@ static void halt_target()
 write_single_debug_byte(reg_debug_runstate, 0x05);
 }
 
-static void flash_test()
-{
-printf("# flash test\n");
-
-flash_read_start(0x000000);
-
-for (int i = 0; i < 16; i++)
-{
-printf("%02x", flash_read_next());
-}
-
-flash_read_end();  
-
-printf("\nS\n");
-
-}
-
 static void set_target_clock_speed(uint8_t speed)
 {
 write_single_debug_byte(reg_swire_clk_div, speed);
@@ -638,36 +556,44 @@ write_single_debug_byte(reg_swire_clk_div, speed);
 static void banner()
 {
 printf(
-"# Telink debugger bridge\n"
-"# Fork by: Novan24\n"
-"# Mod_Ver: 3.1\n"
-"# Changes:\n"
-"#  - Added Stream Programming\n"
-"#  - Automatic Verify\n"
-"#  - JEDEC Flash ID\n"
-"#  - Full Flash Dump\n"
-"#  - Flash Utility Commands\n"
-"# i            verify connection to device\n"
-"# J            read JEDEC flash ID\n"
-"# ZAAAAAA      burst-read 256 bytes @ addr (test cmd, compare vs D)\n"
-"# B            read flash status register\n"
-"# E            flash write enable\n"
-"# Y            Verify\n"
-"# rX           X=[0, 1] set status of reset pin\n"
-"# g            take device out of reset\n"
-"# s            read device socid\n"
-"# t            Flash Test\n"
-"# F            dump full flash\n"
-"# DAAAAALLLL  Dump flash (address,count hex)\n"
-"A AAAAAAALLLLLLDD... stream program + verify\n"
-"# X            erase sector 0x000000 (test)\n"
-"# C            CHIP ERASE (This will ERASE the entire flash!)\n"
-"# UAAAAAALLLLDD... program bytes to flash\n"
-"# YAAAAAALLLLDD... verify bytes in flash\n"
-"# RXXXXYYYY    read YYYY bytes from XXXX (values in hex)\n"
-"# WXXXXYYYY... write YYYY bytes to XXXX, folowed by hex pairs\n"
-"# Responses are S for success, E for error, and # is a comment.\n"
-"# Good luck (you'll need it).\n");
+"Telink Bridge RP2040 Firmware\n"
+"-\n"
+"Original Author : David Given\n"
+"Fork : Novan24\n"
+"Firmware mod version : 3.2\n"
+" \n"
+"A : Address, L : Length, D : Hex Data\n"
+"Main Commands  :\n"
+"i            Initialize Connection\n"
+"J            Read JEDEC flash ID\n"
+"A   Stream Program (Auto Verify)\n"
+"       Usage : A AAAAAALLLLLLDD.. (No space)\n"
+"D   Dump Flash\n"
+"       Usage : DAAAAALLLL\n"
+"F   Dump Entire Flash\n"
+"C   Chip Erase (Erase Entire Flash!)\n"
+"  \n"
+
+"Advanced Commands :\n"
+"B   Read Status Register\n"
+"E   Flash Write Enable\n"
+"rX  X=[0, 1] Set status of reset pin\n"
+"g   Pulse reset\n"
+"s   Read SoC ID\n"
+"U   Program Flash Bytes\n"
+"       Usage : UAAAAAALLLLDD..\n"
+"Y   Verify Flash Bytes\n"
+"       Usage : YAAAAAALLLLDD..\n"
+"R   Read Debug Memory\n"
+"       Usage : RXXXXYYYY (Read YYYY bytes from XXXX (Hex))\n"
+"W   Write Debug Memory\n"
+"       Usage : WXXXXYYYYDD.. (Write YYYY bytes to XXXX, followed by Hex data\n"
+"  \n"
+"Info\n"
+"Always Run : 'i' Initialize Connection, After first BOOT before using other commands.\n"
+"S For success, E for error, # are comments\n"
+"If no S or E returned, The program has DeadLocked. Reconnect the USB device.\n"
+"Good luck! you'll need it. :)\n");
 }
 
 static void init_cmd()
@@ -820,18 +746,6 @@ case 'g':
             break;  
         }  
 
-        case 't':  
-        {  
-            if (!is_connected)  
-        {  
-            printf("# not connected\nE\n");  
-            break;  
-        }  
-
-                flash_test();  
-            break;  
-        }  
-
         case 'D':  
             {  
             if (!is_connected)  
@@ -877,36 +791,7 @@ printf("# status = %02X\n", flash_read_status());
 
 printf("S\n");  
 break;
-
 }
-
-case 'P':
-{
-if (!is_connected)
-{
-printf("E\n");
-break;
-}
-
-flash_program_test();  
-
-printf("S\n");  
-break;
-
-}
-
-case 'X':
-{
-if (!is_connected)
-{
-printf("E\n");
-break;
-}
-
-flash_erase_test();  
-
-printf("S\n");  
-break;
 
 }
 case 'C':
@@ -1040,56 +925,29 @@ case 'J':
     break;
 }
 
-case 'Z':
-{
-    // Burst-read validation: reads 256 bytes starting at a given address
-    // using flash_read_multi() (1 envelope for the read, not 256).
-    // Compare this output byte-for-byte against 'D' (addr, len=0100) at
-    // the same address. If they match, the burst path is safe to promote
-    // into flash_dump_range()/flash_verify_buffer().
-    if (!is_connected)
-    {
-        printf("E\n");
-        break;
-    }
-
-    uint32_t addr = read_hex_addr24();
-
-    flash_read_start(addr);
-    flash_read_multi(page_buffer, 256);
-    flash_read_end();
-
-    printf("# burst read test: 256 bytes @ %06X\n", (unsigned)addr);
-    for (int i = 0; i < 256; i++)
-        printf("%02X", page_buffer[i]);
-    printf("\n");
-    printf("S\n");
-    break;
-}
-
 case 'R':  
-        {  
-            uint16_t address = read_hex_word();  
-            uint16_t count = read_hex_word();  
+    {  
+        uint16_t address = read_hex_word();  
+        uint16_t count = read_hex_word();  
 
-            if (count)  
-            {  
-                uint8_t b = read_first_debug_byte(address);  
-                printf("%02x", b);  
-                count--;  
+   if (count)  
+    {  
+        uint8_t b = read_first_debug_byte(address);  
+        printf("%02x", b);  
+        count--;  
 
-                while (count--)  
-                {  
-                    b = read_next_debug_byte();  
-                    printf("%02x", b);  
-                }  
+        while (count--)  
+    {  
+        b = read_next_debug_byte();  
+        printf("%02x", b);  
+    }  
 
-                finish_reading_debug_bytes();  
-                printf("\n");  
-            }  
-            printf("S\n");  
-            break;  
-        }  
+        finish_reading_debug_bytes();  
+        printf("\n");  
+    }  
+        printf("S\n");  
+    break;  
+    }  
 
         case 'W':  
         {  
