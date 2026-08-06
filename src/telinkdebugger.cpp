@@ -547,7 +547,8 @@ static void halt_target()
 {
 write_single_debug_byte(reg_debug_runstate, 0x05);
 }
-
+static void set_target_clock_speed(uint8_t speed)
+{
 {
 write_single_debug_byte(reg_swire_clk_div, speed);
 }
