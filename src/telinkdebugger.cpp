@@ -548,7 +548,6 @@ static void halt_target()
 write_single_debug_byte(reg_debug_runstate, 0x05);
 }
 
-static void set_target_clock_speed(uint8_t speed)
 {
 write_single_debug_byte(reg_swire_clk_div, speed);
 }
@@ -585,9 +584,11 @@ printf(
 "Y   Verify Flash Bytes\n"
 "       Usage : YAAAAAALLLLDD..\n"
 "R   Read Debug Memory\n"
-"       Usage : RXXXXYYYY (Read YYYY bytes from XXXX (Hex))\n"
+"       Usage : RXXXXYYYY\n"
+"       (Read YYYY bytes from XXXX (Hex))\n"
 "W   Write Debug Memory\n"
-"       Usage : WXXXXYYYYDD.. (Write YYYY bytes to XXXX, followed by Hex data\n"
+"       Usage : WXXXXYYYYDD.. \n"
+"       (Write YYYY bytes to XXXX, followed by Hex data)\n"
 "  \n"
 "Info\n"
 "Always Run : 'i' Initialize Connection, After first BOOT before using other commands.\n"
@@ -793,7 +794,6 @@ printf("S\n");
 break;
 }
 
-}
 case 'C':
 {
 if (!is_connected)
