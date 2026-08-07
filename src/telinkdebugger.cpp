@@ -109,6 +109,36 @@ uint8_t value = pio_sm_get_blocking(pio1, SM_RX);
 return value;
 
 }
+static bool read_byte_timeout(uint8_t* value, uint32_t timeout_ms)
+{
+    pio_gpio_init(pio1, SWS_PIN);
+    pio_gpio_init(pio1, DBG_PIN);
+
+    pio_sm_clear_fifos(pio1, SM_RX);
+    pio_sm_exec_wait_blocking(pio1, SM_RX, sws_rx_program_offset);
+
+    absolute_time_t deadline = make_timeout_time_ms(timeout_ms);
+
+    while (pio_sm_is_rx_fifo_empty(pio1, SM_RX))
+    {
+        if (time_reached(deadline))
+            return false;
+    }
+
+    *value = (uint8_t)pio_sm_get(pio1, SM_RX);
+
+#if DEBUG_SWS
+    printf("# sws rx = 0x%02X\n", *value);
+#endif
+
+    return true;
+}
+static bool flash_read_spi_byte_timeout(uint8_t* value)
+{
+    flash_send_byte(0xff);
+
+    return read_byte_timeout(value, 50);
+}
 
 static uint8_t read_first_debug_byte(uint16_t address)
 {
@@ -254,16 +284,31 @@ static void flash_read_jedec_id(void)
     // FIFO mode
     write_single_debug_byte(0x00b3, 0x80);
 
-    // Dummy clocks
-    write_single_debug_byte(0x000c, 0xFF);
-    uint8_t mfr = read_single_debug_byte(0x000c);
+    uint8_t mfr, type, cap;
 
-    write_single_debug_byte(0x000c, 0xFF);
-    uint8_t type = read_single_debug_byte(0x000c);
+if (!flash_read_spi_byte_timeout(&mfr))
+{
+    write_single_debug_byte(0x00b3, 0x00);
+    flash_cs_high();
+    printf("E\n");
+    return;
+}
 
-    write_single_debug_byte(0x000c, 0xFF);
-    uint8_t cap = read_single_debug_byte(0x000c);
+if (!flash_read_spi_byte_timeout(&type))
+{
+    write_single_debug_byte(0x00b3, 0x00);
+    flash_cs_high();
+    printf("E\n");
+    return;
+}
 
+if (!flash_read_spi_byte_timeout(&cap))
+{
+    write_single_debug_byte(0x00b3, 0x00);
+    flash_cs_high();
+    printf("E\n");
+    return;
+}
     write_single_debug_byte(0x00b3, 0x00);
 
     flash_cs_high();
