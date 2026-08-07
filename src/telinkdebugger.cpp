@@ -600,7 +600,7 @@ printf(
 "-\n"
 "Original Author : David Given\n"
 "Fork : Novan24\n"
-"Firmware mod version : 3.2\n"
+"Firmware mod version : 3.3\n"
 " \n"
 "A : Address, L : Length, D : Hex Data\n"
 "Main Commands  :\n"
