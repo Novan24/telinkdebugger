@@ -17,6 +17,7 @@ Copyright (c) 2024 David Given dg@cowlark.com
 #include "globals.h"
 
 #define FLASH_DUMP_TOTAL 0x100000u
+#define SWS_TIMEOUT_MS 50
 
 #define SWS_PIN 2
 #define RST_PIN 3
@@ -999,29 +1000,46 @@ case 'J':
     break;
 }
 
-case 'R':  
-    {  
-        uint16_t address = read_hex_word();  
-        uint16_t count = read_hex_word();  
+case 'R':
+{
+    uint16_t address = read_hex_word();
+    uint16_t count = read_hex_word();
 
-   if (count)  
-    {  
-        uint8_t b = read_first_debug_byte(address);  
-        printf("%02x", b);  
-        count--;  
+    if (count)
+    {
+        uint8_t b;
 
-        while (count--)  
-    {  
-        b = read_next_debug_byte();  
-        printf("%02x", b);  
-    }  
+        if (!read_first_debug_byte(address, &b))
+        {
+            finish_reading_debug_bytes();
+            printf("E\n");
+            goto end_R;
+        }
 
-        finish_reading_debug_bytes();  
-        printf("\n");  
-    }  
-        printf("S\n");  
-    break;  
-    }  
+        printf("%02x", b);
+        count--;
+
+        while (count--)
+        {
+            if (!read_next_debug_byte(&b))
+            {
+                finish_reading_debug_bytes();
+                printf("E\n");
+                goto end_R;
+            }
+
+            printf("%02x", b);
+        }
+
+        finish_reading_debug_bytes();
+        printf("\n");
+    }
+
+    printf("S\n");
+
+end_R:
+    break;
+}
 
         case 'W':  
         {  
