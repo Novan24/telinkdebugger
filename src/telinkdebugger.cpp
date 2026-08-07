@@ -133,12 +133,6 @@ static bool read_byte_timeout(uint8_t* value, uint32_t timeout_ms)
 
     return true;
 }
-static bool flash_read_spi_byte_timeout(uint8_t* value)
-{
-    flash_send_byte(0xff);
-
-    return read_byte_timeout(value, 50);
-}
 
 static uint8_t read_first_debug_byte(uint16_t address)
 {
@@ -147,12 +141,24 @@ write_data_word(address);
 write_data_byte(0x80);
 
 return read_byte();
+}
+static bool read_first_debug_byte_timeout(uint16_t address, uint8_t* value, uint32_t timeout_ms)
+{
+    write_cmd_byte(0x5a);
+    write_data_word(address);
+    write_data_byte(0x80);
 
+    return read_byte_timeout(value, timeout_ms);
 }
 
 static uint8_t read_next_debug_byte()
 {
 return read_byte();
+}
+
+static bool read_next_debug_byte_timeout(uint8_t* value, uint32_t timeout_ms)
+{
+    return read_byte_timeout(value, timeout_ms);
 }
 
 static void finish_reading_debug_bytes()
@@ -165,6 +171,21 @@ static uint8_t read_single_debug_byte(uint16_t address)
 uint8_t value = read_first_debug_byte(address);
 finish_reading_debug_bytes();
 return value;
+}
+
+static bool read_single_debug_byte_timeout(
+    uint16_t address,
+    uint8_t* value,
+    uint32_t timeout_ms)
+{
+    if (!read_first_debug_byte_timeout(address, value, timeout_ms))
+    {
+        finish_reading_debug_bytes();
+        return false;
+    }
+
+    finish_reading_debug_bytes();
+    return true;
 }
 
 static uint16_t read_single_debug_word(uint16_t address)
@@ -284,31 +305,16 @@ static void flash_read_jedec_id(void)
     // FIFO mode
     write_single_debug_byte(0x00b3, 0x80);
 
-    uint8_t mfr, type, cap;
+    // Dummy clocks
+write_single_debug_byte(0x000c, 0xFF);
+uint8_t mfr = read_single_debug_byte(0x000c);
 
-if (!flash_read_spi_byte_timeout(&mfr))
-{
-    write_single_debug_byte(0x00b3, 0x00);
-    flash_cs_high();
-    printf("E\n");
-    return;
-}
+write_single_debug_byte(0x000c, 0xFF);
+uint8_t type = read_single_debug_byte(0x000c);
 
-if (!flash_read_spi_byte_timeout(&type))
-{
-    write_single_debug_byte(0x00b3, 0x00);
-    flash_cs_high();
-    printf("E\n");
-    return;
-}
+write_single_debug_byte(0x000c, 0xFF);
+uint8_t cap = read_single_debug_byte(0x000c);
 
-if (!flash_read_spi_byte_timeout(&cap))
-{
-    write_single_debug_byte(0x00b3, 0x00);
-    flash_cs_high();
-    printf("E\n");
-    return;
-}
     write_single_debug_byte(0x00b3, 0x00);
 
     flash_cs_high();
