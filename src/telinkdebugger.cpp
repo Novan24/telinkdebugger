@@ -193,10 +193,24 @@ static bool read_single_debug_byte_timeout(
 
 static uint16_t read_single_debug_word(uint16_t address)
 {
-uint8_t v1 = read_first_debug_byte(address);
-uint8_t v2 = read_next_debug_byte();
-finish_reading_debug_bytes();
-return v1 | (v2 << 8);
+    uint8_t v1;
+    uint8_t v2;
+
+    if (!read_first_debug_byte(address, &v1))
+    {
+        finish_reading_debug_bytes();
+        return 0;
+    }
+
+    if (!read_next_debug_byte(&v2))
+    {
+        finish_reading_debug_bytes();
+        return 0;
+    }
+
+    finish_reading_debug_bytes();
+
+    return v1 | (v2 << 8);
 }
 
 static void write_first_debug_byte(uint16_t address, uint8_t value)
