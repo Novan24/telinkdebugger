@@ -305,15 +305,40 @@ static void flash_read_jedec_id(void)
     // FIFO mode
     write_single_debug_byte(0x00b3, 0x80);
 
-    // Dummy clocks
-write_single_debug_byte(0x000c, 0xFF);
-uint8_t mfr = read_single_debug_byte(0x000c);
+uint8_t mfr, type, cap;
 
+// Manufacturer
 write_single_debug_byte(0x000c, 0xFF);
-uint8_t type = read_single_debug_byte(0x000c);
+if (!read_single_debug_byte_timeout(0x000c, &mfr, 50))
+{
+    printf("# timeout waiting manufacturer byte\n");
+    write_single_debug_byte(0x00b3, 0x00);
+    flash_cs_high();
+    printf("E\n");
+    return;
+}
 
+// Memory Type
 write_single_debug_byte(0x000c, 0xFF);
-uint8_t cap = read_single_debug_byte(0x000c);
+if (!read_single_debug_byte_timeout(0x000c, &type, 50))
+{
+    printf("# timeout waiting memory type\n");
+    write_single_debug_byte(0x00b3, 0x00);
+    flash_cs_high();
+    printf("E\n");
+    return;
+}
+
+// Capacity
+write_single_debug_byte(0x000c, 0xFF);
+if (!read_single_debug_byte_timeout(0x000c, &cap, 50))
+{
+    printf("# timeout waiting capacity\n");
+    write_single_debug_byte(0x00b3, 0x00);
+    flash_cs_high();
+    printf("E\n");
+    return;
+}
 
     write_single_debug_byte(0x00b3, 0x00);
 
