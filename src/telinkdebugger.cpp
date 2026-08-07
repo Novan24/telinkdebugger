@@ -134,13 +134,15 @@ static bool read_byte_timeout(uint8_t* value, uint32_t timeout_ms)
     return true;
 }
 
-static uint8_t read_first_debug_byte(uint16_t address)
+static bool read_first_debug_byte(
+    uint16_t address,
+    uint8_t* value)
 {
 write_cmd_byte(0x5a);
 write_data_word(address);
 write_data_byte(0x80);
 
-return read_byte();
+return read_byte_timeout(value, SWS_TIMEOUT_MS);
 }
 static bool read_first_debug_byte_timeout(uint16_t address, uint8_t* value, uint32_t timeout_ms)
 {
@@ -151,9 +153,9 @@ static bool read_first_debug_byte_timeout(uint16_t address, uint8_t* value, uint
     return read_byte_timeout(value, timeout_ms);
 }
 
-static uint8_t read_next_debug_byte()
+bool read_next_debug_byte(uint8_t* value)
 {
-return read_byte();
+    return read_byte_timeout(value, SWS_TIMEOUT_MS);
 }
 
 static bool read_next_debug_byte_timeout(uint8_t* value, uint32_t timeout_ms)
