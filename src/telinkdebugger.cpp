@@ -27,7 +27,8 @@ Copyright (c) 2024 David Given dg@cowlark.com
 #define SM_RX 0
 #define SM_TX 1
 
-#define DEBUG_SWS 0
+//Hex transfer debug 0/1
+#define DEBUG_SWS 1
 #define BUFFER_SIZE_BITS 4096
 
 #define REG_ADDR8(n) (n)
