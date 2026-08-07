@@ -171,9 +171,16 @@ write_cmd_byte(0xff);
 
 static uint8_t read_single_debug_byte(uint16_t address)
 {
-uint8_t value = read_first_debug_byte(address);
-finish_reading_debug_bytes();
-return value;
+    uint8_t value = 0;
+
+    if (!read_first_debug_byte(address, &value))
+    {
+        finish_reading_debug_bytes();
+        return 0;
+    }
+
+    finish_reading_debug_bytes();
+    return value;
 }
 
 static bool read_single_debug_byte_timeout(
