@@ -53,6 +53,7 @@ static int sws_tx_program_offset;
 static int sws_rx_program_offset;
 
 static bool is_connected;
+static uint32_t flash_capacity = FLASH_DUMP_TOTAL;
 
 static void write_nine_bit_byte(uint16_t byte)
 {
@@ -186,7 +187,46 @@ static void flash_cs_high()
 {
     write_single_debug_byte(0x000d, 0x01);
 }
+static void flash_send_byte(uint8_t value)
+{
+    write_single_debug_byte(0x000c, value);
+}
 
+static uint8_t flash_read_spi_byte()
+{
+    flash_send_byte(0xff);
+    return read_single_debug_byte(0x000c);
+}
+
+static uint32_t flash_detect_capacity()
+{
+    flash_cs_low();
+
+    // JEDEC ID
+    flash_send_byte(0x9F);
+
+    // FIFO mode
+    write_single_debug_byte(0x00b3, 0x80);
+
+    uint8_t manufacturer = flash_read_spi_byte();
+    uint8_t memory_type  = flash_read_spi_byte();
+    uint8_t capacity     = flash_read_spi_byte();
+
+    // kembali RAM mode
+    write_single_debug_byte(0x00b3, 0x00);
+
+    flash_cs_high();
+
+    switch (capacity)
+    {
+        case 0x13: return 0x100000;   // 1 MB
+        case 0x12: return 0x080000;   // 512 KB
+        case 0x11: return 0x040000;   // 256 KB
+        case 0x10: return 0x020000;   // 128 KB
+        default:
+            return FLASH_DUMP_TOTAL;
+    }
+}
 static void flash_read_start(uint32_t addr)
 {
     flash_cs_low();
@@ -258,6 +298,7 @@ static bool init_target_quiet(void)
         return false;
 
     write_single_debug_quad(reg_tmr_ctl, 0);
+    flash_capacity = flash_detect_capacity();
     return true;
 }
 static uint8_t read_hex_byte()
@@ -318,7 +359,7 @@ static void flash_dump(uint32_t addr, uint16_t count)
 
 static void flash_dump_all(void)
 {
-    flash_dump_range(0x000000, FLASH_DUMP_TOTAL);
+    flash_dump_range(0x000000, flash_capacity);
     printf("S\n");
 }
 
